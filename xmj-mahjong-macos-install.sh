@@ -275,6 +275,7 @@ echo '#!/bin/bash
 
 # make this script executable
 chmod +x xmj-script
+cd ..
 
 
 ####################################
@@ -313,10 +314,65 @@ chmod +x xmj-script
 # 
 # in the end, you will end up with an iconset `xmj.icns`
 
-echo "In order to trust you application, you should create the icon set following instructions."
+echo "In order to trust your application, you should create the iconset"
+echo "yourself following the instructions in this script file of the Squizzy github, or other."
 echo "Alternatively, the file can be downloaded from the github this script was gotten from"
 echo "By default you should not trust this file and create your own"
 echo "based on the XMJ original icon file: 'icon.ico'"
 
-# Download the iconset from Squizzy's github
-# curl 
+# Download the iconset from Squizzy's github straight into the Resources folder
+# Remove the # in front of the middle line below to enable the download
+cd Resources
+# curl https://github.com/Squizzy/xmj-script/blob/development/xmj.icns -O xmj.icns
+cd ..
+
+
+####################################
+#
+# Copy the executables and the tiles
+# to the MacOS folder
+#
+####################################
+#
+cd MacOS
+cp ../../xmj .
+cp ../../mj-player .
+cp ../../mj-server .
+cp -R ../../tiles-numbered .
+cp -R ../../tiles-small .
+cp -R ../../tiles-v1 .
+cp -R ../../fallbacktiles .
+
+
+####################################
+#
+# Make the App bundle complete
+#
+####################################
+#
+# In order to run, the executable files need librairies (files) that are not generically available on MacOS.
+# The application has used linked librairies (eg gkt+). This makes it not very portable. 
+# In order to fix this, it is possible to copy the required files into the App bundle
+# And then tell the executable files where to look for them in the bundle.
+# Thankfully that last part is available through applications such as:
+# https://github.com/auriamg/macdylibbundler
+#
+# The app can make sure the App Bundle includes all libraries it depends on to place in the "Applications" folder, so it can be shared with someone who hasn't installed all the brewed files.
+
+# The app `dylibbundler` will:
+# - find all the libraries used for the compilation of the executables, 
+# - copy them into the bundle (here, creating a new folder `libs` under `XMJ Mahjong.app/Contents/`), 
+# - points the executables to these versions:
+
+# Install the app using homebrew
+brew install dylibbundler
+
+# run the app against each executable.
+# For example, when in terminal we are in the same folder as the app bundle:
+# (above "XMJ Mahjong.app"), use:
+cd ..
+/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/xmj -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+
+/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+
+/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
