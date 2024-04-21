@@ -147,5 +147,26 @@ sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef macOS\n\t\tstrcpy(cmd,"m
 # Make the executables
 #
 ####################################
+#
+# Install Homebrew, a package manager (installs stuff needed to run xmj)
+# https://brew.sh/
+
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+
+# Install GTK+, a package needed for the making the graphical interface from homebrew
+brew install gtk+
+
+# Install pkg-config from homebrew
+brew install pkg-config
+
+# Make the executables
 make
 
+####################################
+#
+# Make Apple App Bundle 
+# (the application with everthing 
+# that appears in Launchpad)
+#
+####################################
+#
