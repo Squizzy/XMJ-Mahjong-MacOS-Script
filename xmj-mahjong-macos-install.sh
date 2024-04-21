@@ -112,7 +112,7 @@ sed -i "" 's/#include "gtkrc.h"/#include "gtkrc.h"\n#define MacOS/' gui.c
 # /' gui.c
 
 
-sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/ifndef macOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\telse\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\tendif/' gui.c
+sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef macOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
 
 # and also:
 # change:
@@ -136,7 +136,7 @@ sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/ifndef macOS\n\
 #     endif
 # /' gui.c
 
-sed -i "" 's/strcpy(cmd,"mj-player --server ");/ifndef macOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\telse\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\tendif/' gui.c
+sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef macOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
 
 # This concludes the essential code changes - could be done in a smarter way, presumably.
 
