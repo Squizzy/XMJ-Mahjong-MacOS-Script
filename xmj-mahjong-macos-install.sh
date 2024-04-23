@@ -18,7 +18,7 @@
 # Creare a folder for the setup
 
 echo "========================================================"
-echo " download and extract application from author's website"
+echo " Download and extract application from author's website"
 echo "========================================================"
 
 mkdir XMJ-MacOS-Install
@@ -411,6 +411,6 @@ echo "========================================================"
 cd ..
 /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/xmj -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
 
-# /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
 
-# /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
