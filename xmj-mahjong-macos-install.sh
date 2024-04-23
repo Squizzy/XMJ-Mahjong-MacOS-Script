@@ -6,7 +6,7 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
-# 2024-04-22 - Version 0.1
+# 2024-04-23 - Version 0.2
 # https://github.com/Squizzy/
 
 ####################################
@@ -268,7 +268,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 # This was a recommendation from Hayden in the link above
 # script stored under Contents folder
 # Script is called as pointed by Info.plist
-cd Contents
+cd MacOS
 echo '#!/bin/bash
     cd "${0%/*}"
     ./xmj' > xmj-script
@@ -323,7 +323,7 @@ echo "based on the XMJ original icon file: 'icon.ico'"
 # Download the iconset from Squizzy's github straight into the Resources folder
 # Remove the # in front of the middle line below to enable the download
 cd Resources
-# curl https://github.com/Squizzy/xmj-script/blob/development/xmj.icns -O xmj.icns
+curl https://github.com/Squizzy/xmj-script/blob/development/xmj.icns -O xmj.icns
 cd ..
 
 
@@ -335,14 +335,14 @@ cd ..
 ####################################
 #
 cd MacOS
-cp ../../xmj .
-cp ../../mj-player .
-cp ../../mj-server .
-cp -R ../../tiles-numbered .
-cp -R ../../tiles-small .
-cp -R ../../tiles-v1 .
-cp -R ../../fallbacktiles .
-
+cp ../../../xmj .
+cp ../../../mj-player .
+cp ../../../mj-server .
+cp -R ../../../tiles-numbered .
+cp -R ../../../tiles-small .
+cp -R ../../../tiles-v1 .
+cp -R ../../../fallbacktiles .
+cd ../..
 
 ####################################
 #
