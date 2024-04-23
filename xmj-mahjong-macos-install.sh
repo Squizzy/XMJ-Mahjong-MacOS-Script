@@ -6,7 +6,9 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
-# 2024-04-23 - Version 0.2
+# 2024-04-24 - Version 0.3 - first Beta
+# 2024-04-24 - Version 0.2
+# 2024-04-24 - Version 0.1
 # https://github.com/Squizzy/
 
 ####################################

@@ -1,7 +1,7 @@
 # XMJ Mahjong on MacOS
-
-## What is it?
-* A script to install XMJ Mahjong on MacOS.
+ 
+## What is this?
+* A **script to install XMJ Mahjong on MacOS**.
 * The application is provided by its author for Linux and Windows, but no recent version has been available for MacOS.
   * This script creates it, hopefully with the latest version of the code.
 * Note that Apple has claimed port 5000, so the default here has been set to 4000.
@@ -16,7 +16,7 @@
 > cd Downloads
 * Make sure the internet connection is still on
 * Execute the file:
-> sh xmj-mahjong-macos-install.sh
+> sh ./xmj-mahjong-macos-install.sh
 * Wait until returning to the terminal prompt
 * Verify with Finder that the application is in the Applications folder and/or with Launchpad that the application is present
 * In the terminal, you can remove the folder *XMJ-MacOS-Install*
