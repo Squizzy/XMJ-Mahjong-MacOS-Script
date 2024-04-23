@@ -1,6 +1,6 @@
 # XMJ Mahjong on MacOS
- 
-## What is this?
+
+## What is this?
 * A **script to install XMJ Mahjong on MacOS**.
 * The application is provided by its author for Linux and Windows, but no recent version has been available for MacOS.
   * This script creates it, hopefully with the latest version of the code.
