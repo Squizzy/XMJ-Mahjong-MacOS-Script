@@ -16,6 +16,11 @@
 ####################################
 #
 # Creare a folder for the setup
+
+echo "========================================================"
+echo " download and extract application from author's website"
+echo "========================================================"
+
 mkdir XMJ-MacOS-Install
 
 # Go to this folder
@@ -46,6 +51,9 @@ cd mj-1.16-src
 # Hopefully this can be addressed later but this will cause confusion for the forseeable future
 #
 # For now, change the XMJ Mahjong default port to 4000 (for example):
+echo "========================================================"
+echo " Modify source code as needed for Apple"
+echo "========================================================"
 
 # - in gui.c:
 # change
@@ -153,6 +161,9 @@ sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef macOS\n\t\tstrcpy(cmd,"m
 #
 # Install Homebrew, a package manager (installs stuff needed to run xmj)
 # https://brew.sh/
+echo "========================================================"
+echo " Download Homebrew and required packages"
+echo "========================================================"
 
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 
@@ -163,6 +174,9 @@ brew install gtk+
 brew install pkg-config
 
 # Make the executables
+echo "========================================================"
+echo " Make the executable"
+echo "========================================================"
 make
 
 
@@ -205,6 +219,10 @@ make
 #
 # First create the folder tree
 
+echo "========================================================"
+echo " Create folders tree"
+echo "========================================================"
+
 mkdir XMJ\ Mahjong.app
 cd XMJ\ Mahjong.app
 mkdir Contents
@@ -228,6 +246,10 @@ mkdir Libs
 #
 # Specific credit though to: Hayden Schiff under:
 # https://stackoverflow.com/questions/1596945/building-osx-app-bundle
+
+echo "========================================================"
+echo " Create Info.plist"
+echo "========================================================"
 
 echo '<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -268,6 +290,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 # This was a recommendation from Hayden in the link above
 # script stored under Contents folder
 # Script is called as pointed by Info.plist
+echo "========================================================"
+echo " Create miniscript"
+echo "========================================================"
 cd MacOS
 echo '#!/bin/bash
     cd "${0%/*}"
@@ -322,6 +347,9 @@ echo "based on the XMJ original icon file: 'icon.ico'"
 
 # Download the iconset from Squizzy's github straight into the Resources folder
 # Remove the # in front of the middle line below to enable the download
+echo "========================================================"
+echo " Download iconset"
+echo "========================================================"
 cd Resources
 curl https://github.com/Squizzy/xmj-script/blob/development/xmj.icns -O xmj.icns
 cd ..
@@ -334,6 +362,9 @@ cd ..
 #
 ####################################
 #
+echo "========================================================"
+echo " Copy the executables and tileset into the bundle"
+echo "========================================================"
 cd MacOS
 cp ../../../xmj .
 cp ../../../mj-player .
@@ -364,15 +395,22 @@ cd ../..
 # - copy them into the bundle (here, creating a new folder `libs` under `XMJ Mahjong.app/Contents/`), 
 # - points the executables to these versions:
 
+echo "========================================================"
+echo " Download dylibbundler"
+echo "========================================================"
+
 # Install the app using homebrew
 brew install dylibbundler
 
 # run the app against each executable.
 # For example, when in terminal we are in the same folder as the app bundle:
 # (above "XMJ Mahjong.app"), use:
+echo "========================================================"
+echo " Run dylibbundler"
+echo "========================================================"
 cd ..
 /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/xmj -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
 
-/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+# /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
 
-/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+# /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
