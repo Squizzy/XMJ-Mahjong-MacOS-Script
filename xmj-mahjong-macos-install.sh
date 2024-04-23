@@ -359,7 +359,7 @@ echo "================================================================="
 echo " Download iconset"
 echo "================================================================="
 cd Resources
-curl https://github.com/Squizzy/xmj-script/blob/development/icns/xmj.icns -O xmj.icns
+curl -L -O https://github.com/Squizzy/XMJ-Mahjong-MacOS-Script/raw/development/icns/xmj.icns
 cd ..
 
 cd ../../..
