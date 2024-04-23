@@ -17,9 +17,9 @@
 #
 # Creare a folder for the setup
 
-echo "========================================================"
+echo "================================================================="
 echo " Download and extract application from author's website"
-echo "========================================================"
+echo "================================================================="
 
 mkdir XMJ-MacOS-Install
 
@@ -51,16 +51,16 @@ cd mj-1.16-src
 # Hopefully this can be addressed later but this will cause confusion for the forseeable future
 #
 # For now, change the XMJ Mahjong default port to 4000 (for example):
-echo "========================================================"
+echo "================================================================="
 echo " Modify source code as needed for Apple"
-echo "========================================================"
+echo "================================================================="
 
 # - in gui.c:
 # change
 #     `char address[256] = "localhost:5000";`
 # to 
 #     `char address[256] = "localhost:4000";`
-cp gui.c gui.c.backup
+#cp gui.c gui.c.backup
 sed -i "" 's/char address\[256\] = "localhost:5000"/char address\[256\] = "localhost:4000"/' gui.c
 
 # change
@@ -74,7 +74,7 @@ sed -i "" 's/if ( strcmp(redirected ? origaddress : address,"localhost:5000") !=
 #   `char *address = ":5000";`
 # to
 #   `char *address = ":4000";`
-cp controller.c controller.c.backup
+#cp controller.c controller.c.backup
 sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' controller.c
 
 # - in greedy.c:
@@ -82,7 +82,7 @@ sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' controller.c
 #   `char *address = ":5000";`
 # to
 #   `char *address = ":4000";`
-cp greedy.c greedy.c.backup
+#cp greedy.c greedy.c.backup
 sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' greedy.c
 
 
@@ -114,17 +114,7 @@ sed -i "" 's/#include "gtkrc.h"/#include "gtkrc.h"\n#define MacOS/' gui.c
 #       strcpy(cmd, "./mj-server --id-order-seats --server ");
 #   #endif
 # ```
-#
-# The below line executes this, which does exactly that:
-#
-# sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/
-#   ifndef macOS\n\t\t\t\t
-#       strcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t
-#   else\n\t\t\t\t
-#       strcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t
-#   endif
-# /' gui.c
-sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef macOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
+sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef MacOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
 
 # also in gui.c:
 # change:
@@ -137,18 +127,7 @@ sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef macOS\n
 #         strcpy(cmd,"./mj-player --server ");
 #     #endif
 # ```
-#
-# The below line executes this, which does exactly that:
-#
-# sed -i "" 's/strcpy(cmd,"mj-player --server ");/
-#     ifndef macOS\n\t\t
-#         strcpy(cmd,"mj-player --server ");\n\t
-#     else\n\t\t
-#         strcpy(cmd,"\.\/mj-player --server ");\n\t
-#     endif
-# /' gui.c
-
-sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef macOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
+sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
 
 # This concludes the essential code changes - could be done in a smarter way, presumably.
 
@@ -161,22 +140,28 @@ sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef macOS\n\t\tstrcpy(cmd,"m
 #
 # Install Homebrew, a package manager (installs stuff needed to run xmj)
 # https://brew.sh/
-echo "========================================================"
+echo "================================================================="
 echo " Download Homebrew and required packages"
-echo "========================================================"
+echo "================================================================="
 
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 
 # Install GTK+, a package needed for the making the graphical interface from homebrew
 brew install gtk+
 
+# As per 23rd Apr 2024 there is a problem as XPM had been removed from gdk-pixbuf.
+# This is in the process of being re-added but in the meantime here is a trick to enable it:
+# https://github.com/Homebrew/homebrew-core/issues/169803#issuecomment-2071212659
+# And the page with updates on the reinstallment:
+#
+
 # Install pkg-config from homebrew
 brew install pkg-config
 
 # Make the executables
-echo "========================================================"
+echo "================================================================="
 echo " Make the executable"
-echo "========================================================"
+echo "================================================================="
 make
 
 
@@ -219,9 +204,9 @@ make
 #
 # First create the folder tree
 
-echo "========================================================"
-echo " Create folders tree"
-echo "========================================================"
+echo "================================================================="
+echo " Create folders tree that is the App Bundle"
+echo "================================================================="
 
 mkdir XMJ\ Mahjong.app
 cd XMJ\ Mahjong.app
@@ -247,9 +232,9 @@ mkdir Libs
 # Specific credit though to: Hayden Schiff under:
 # https://stackoverflow.com/questions/1596945/building-osx-app-bundle
 
-echo "========================================================"
-echo " Create Info.plist"
-echo "========================================================"
+echo "================================================================="
+echo " Create Info.plist in Contents folder"
+echo "================================================================="
 
 echo '<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -290,9 +275,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 # This was a recommendation from Hayden in the link above
 # script stored under Contents folder
 # Script is called as pointed by Info.plist
-echo "========================================================"
-echo " Create miniscript"
-echo "========================================================"
+echo "================================================================="
+echo " Create miniscript in Contents/MacOS folder"
+echo "================================================================="
 cd MacOS
 echo '#!/bin/bash
     cd "${0%/*}"
@@ -300,6 +285,26 @@ echo '#!/bin/bash
 
 # make this script executable
 chmod +x xmj-script
+
+
+####################################
+#
+# Copy the executables and the tiles
+# to the Contents/MacOS folder
+#
+####################################
+#
+echo "================================================================="
+echo " Copy the executables and tileset into the Contents/Macos folder"
+echo "================================================================="
+cd MacOS
+cp ../../../xmj .
+cp ../../../mj-player .
+cp ../../../mj-server .
+cp -R ../../../tiles-numbered .
+cp -R ../../../tiles-small .
+cp -R ../../../tiles-v1 .
+cp -R ../../../fallbacktiles .
 cd ..
 
 
@@ -339,42 +344,33 @@ cd ..
 # 
 # in the end, you will end up with an iconset `xmj.icns`
 
-echo "In order to trust your application, you should create the iconset"
-echo "yourself following the instructions in this script file of the Squizzy github, or other."
+echo "In order to trust your application, you should create the iconset yourself"
+echo "following the instructions in this script file of the Squizzy github, or other."
 echo "Alternatively, the file can be downloaded from the github this script was gotten from"
 echo "By default you should not trust this file and create your own"
 echo "based on the XMJ original icon file: 'icon.ico'"
+echo "This script will download it by default, but you can disable this by"
+echo "adding a # in from of the "curl" line below" 
 
 # Download the iconset from Squizzy's github straight into the Resources folder
-# Remove the # in front of the middle line below to enable the download
-echo "========================================================"
+echo "================================================================="
 echo " Download iconset"
-echo "========================================================"
+echo "================================================================="
 cd Resources
-curl https://github.com/Squizzy/xmj-script/blob/development/xmj.icns -O xmj.icns
+curl https://github.com/Squizzy/xmj-script/blob/development/icns/xmj.icns -O xmj.icns
 cd ..
 
+cd ../../..
 
-####################################
-#
-# Copy the executables and the tiles
-# to the MacOS folder
-#
-####################################
-#
-echo "========================================================"
-echo " Copy the executables and tileset into the bundle"
-echo "========================================================"
-cd MacOS
-cp ../../../xmj .
-cp ../../../mj-player .
-cp ../../../mj-server .
-cp -R ../../../tiles-numbered .
-cp -R ../../../tiles-small .
-cp -R ../../../tiles-v1 .
-cp -R ../../../fallbacktiles .
-cd ../..
 
+# Download the iconset from Squizzy's github straight into the Resources folder
+echo "================================================================="
+echo " Copy the app bundle to the Applications folder/Launchpad"
+echo "================================================================="
+cp -R XMJ\ Mahjong.app /Applications
+
+
+# Below is content that is unnecessary now - for my reference just in case
 ####################################
 #
 # Make the App bundle complete
@@ -395,22 +391,22 @@ cd ../..
 # - copy them into the bundle (here, creating a new folder `libs` under `XMJ Mahjong.app/Contents/`), 
 # - points the executables to these versions:
 
-echo "========================================================"
-echo " Download dylibbundler"
-echo "========================================================"
+# echo "========================================================"
+# echo " Download dylibbundler"
+# echo "========================================================"
 
-# Install the app using homebrew
-brew install dylibbundler
+# # Install the app using homebrew
+# brew install dylibbundler
 
 # run the app against each executable.
 # For example, when in terminal we are in the same folder as the app bundle:
 # (above "XMJ Mahjong.app"), use:
-echo "========================================================"
-echo " Run dylibbundler"
-echo "========================================================"
-cd ..
-/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/xmj -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
-
-/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
-
-/usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+# echo "========================================================"
+# echo " Run dylibbundler"
+# echo "========================================================"
+# cd ..
+# /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/xmj -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+# 
+# /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
+# 
+# /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
