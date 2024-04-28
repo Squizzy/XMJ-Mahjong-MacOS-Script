@@ -362,7 +362,7 @@ cd Resources
 curl -L -O https://github.com/Squizzy/XMJ-Mahjong-MacOS-Script/raw/development/icns/xmj.icns
 cd ..
 
-cd ../../..
+cd ../..
 
 
 # Download the iconset from Squizzy's github straight into the Resources folder
