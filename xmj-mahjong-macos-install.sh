@@ -26,7 +26,7 @@ echo "================================================================="
 mkdir XMJ-MacOS-Install
 
 # Go to this folder
-cd XMJ-MacOS-Install
+cd XMJ-MacOS-Install  || { echo "Failed to get to the XMJ-MacOS-Install/ folder"; exit; }
 
 # Download XMJ Mahjong source code from its original website (from Julian Bradfield)
 curl https://mahjong.julianbradfield.org/Source/mj-1.16-src.tar.gz -O mj-1.16-src.tar.gz
@@ -38,7 +38,7 @@ tar -zxvf ./mj-1.16-src.tar.gz
 rm mj-1.16-src.tar.gz
 
 # Go to the extracted folder
-cd mj-1.16-src
+cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
 
 
 ####################################
@@ -211,9 +211,9 @@ echo " Create folders tree that is the App Bundle"
 echo "================================================================="
 
 mkdir XMJ\ Mahjong.app
-cd XMJ\ Mahjong.app
+cd XMJ\ Mahjong.app cd XMJ-MacOS-Install  || { echo "Failed to get to the 'XMJ Mahjong.app/' folder"; exit; }
 mkdir Contents
-cd Contents
+cd Contents  || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/' folder"; exit; }
 mkdir MacOS
 mkdir Resources
 mkdir Libs
@@ -280,7 +280,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 echo "================================================================="
 echo " Create miniscript in Contents/MacOS folder"
 echo "================================================================="
-cd MacOS
+cd MacOS   || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/MacOS/' folder"; exit; }
 echo '#!/bin/bash
     cd "${0%/*}"
     ./xmj' > xmj-script
@@ -299,7 +299,7 @@ chmod +x xmj-script
 echo "================================================================="
 echo " Copy the executables and tileset into the Contents/Macos folder"
 echo "================================================================="
-cd MacOS
+cd MacOS   || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/MacOS' folder"; exit; }
 cp ../../../xmj .
 cp ../../../mj-player .
 cp ../../../mj-server .
@@ -352,13 +352,13 @@ echo "Alternatively, the file can be downloaded from the github this script was 
 echo "By default you should not trust this file and create your own"
 echo "based on the XMJ original icon file: 'icon.ico'"
 echo "This script will download it by default, but you can disable this by"
-echo "adding a # in from of the "curl" line below" 
+echo "adding a # in from of the 'curl' line below" 
 
 # Download the iconset from Squizzy's github straight into the Resources folder
 echo "================================================================="
 echo " Download iconset"
 echo "================================================================="
-cd Resources
+cd Resources  || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/Resources/' folder"; exit; }
 curl -L -O https://github.com/Squizzy/XMJ-Mahjong-MacOS-Script/raw/development/icns/xmj.icns
 cd ..
 
