@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/zsh
 
 # Script to install Julian Bradfield XMJ Mahjong to MacOS
 #
