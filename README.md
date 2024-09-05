@@ -42,6 +42,7 @@ A script to install Julian Bradfield's XMJ Mahjong on MacOS
 * Installs the App Bundle into the Applications Folder/Launchpad
 
 ## History:
+* v0.4 script updated with using functions, more error checking, cleanup and version check in command line. currently in testing, version with -with-function in filename.
 * v0.3 first beta release
 
 ## TO DO
