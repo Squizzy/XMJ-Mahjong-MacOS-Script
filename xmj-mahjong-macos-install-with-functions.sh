@@ -12,13 +12,34 @@
 # 2024-04-24 - Version 0.1
 # https://github.com/Squizzy/
 
+set -e  # Exit immediately if a command exits with a non-zero status
+trap 'echo "Error occurred. Exiting..."; exit 1' ERR
+
+ENABLE_LOG=false
+CLEANUP=false
+
 XMJ_VERSION="1.16"
+DOWNLOAD_ICONSET=true
+
+usage() {
+    echo "Usage: $0 [-v version] [-c] [-d] [-l] [-h]"
+    echo "  -v version  Specify XMJ version (default: 1.16)"
+    echo "  -c          Enable cleanup after installation (default: false)"
+    echo "  -d          Download iconset disable (default: true)"
+    echo "  -l          Enable log (default: disabled)"
+    echo "  -h          Display this help message"
+    exit 1
+}
 
 # Check if a version was specified in the command line, in which case, overwrite above
-while getopts ":v:" opt; do
+while getopts ":v:lcdh" opt; do
   case $opt in
     v) XMJ_VERSION="$OPTARG" ;;
-    \?) echo "Invalid option -$OPTARG. Only valid is -v <version number eg 1.16>" >&2; exit 1 ;;
+    l) ENABLE_LOG=true ;;
+    c) CLEANUP=true ;;
+    d) DOWNLOAD_ICONSET=false ;;
+    h) usage ;;
+    \?) echo "Invalid option -$OPTARG." >&2; exit 1 ;;
   esac
 done
 
@@ -36,32 +57,56 @@ APP_RESOURCES="$APP_NAME/Contents/Resources"
 APP_LIBS="$APP_NAME/Contents/Libs"
 
 CREATE_BACKUP=false
-DOWNLOAD_ICONSET=true
-CLEANUP=false
 
+log() {
+  if [ "$ENABLE_LOG" = true ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+  fi
+}
+
+check_dependencies() {
+  log "Checking dependencies"
+  command -v curl >/dev/null 2>&1 || { echo >&2 "curl is required but not installed. Aborting."; exit 1; }
+  command -v tar >/dev/null 2>&1 || { echo >&2 "tar is required but not installed. Aborting."; exit 1; }
+  command -v sed >/dev/null 2>&1 || { echo >&2 "sed is required but not installed. Aborting."; exit 1; }
+}
+
+check_existing_installation() {
+  if [ -d "/Applications/$APP_NAME" ]; then
+    if confirm "XMJ Mahjong is already installed. Reinstall?"; then
+      log "Removing existing installation"
+      rm -rf "/Applications/$APP_NAME"
+    else
+      log "Installation cancelled by user"
+      exit 0
+    fi
+  fi
+}
 
 confirm() {
-    read -r "?$1 [y/N] " response
-    case "$response" in
-        [yY][eE][sS]|[yY]) 
-            true
-            ;;
-        *)
-            false
-            ;;
-    esac
+# generic confirmation request function
+  read -r -p "$1 [y/N] " response
+  case "$response" in
+    [yY][eE][sS]|[yY]) 
+        true
+        ;;
+    *)
+        false
+        ;;
+  esac
 }
 
 create_temp_folder(){
   #
   # Create a folder for the setup
-  
+  log "Create temp folder"
+
   # mkdir XMJ-MacOS-Install
   mkdir $TEMP_FOLDER
 
   # Go to this folder
   # cd XMJ-MacOS-Install  || { echo "Failed to get to the XMJ-MacOS-Install/ folder"; exit; }
-  cd $TEMP_FOLDER  || { echo "xmj_download_src: Failed to change directory to ${TEMP_FOLDER}"; exit; }
+  cd $TEMP_FOLDER  || { echo "create_temp_folder: Failed to change directory to ${TEMP_FOLDER}"; exit; }
 }
 
 xmj_download_src() {
@@ -75,14 +120,21 @@ xmj_download_src() {
   echo " Downloading application source from author's website"
   echo "================================================================="
 
+  log "Downloading application source from author's website"
+
   # Download XMJ Mahjong source code from its original website (from Julian Bradfield)
   # curl https://mahjong.julianbradfield.org/Source/mj-1.16-src.tar.gz -O mj-1.16-src.tar.gz
-  curl "$XMJ_SRC_REMOTE_FILE" -O "$XMJ_SRC_FILENAME_COMPRESSED"
+  if ! curl "$XMJ_SRC_REMOTE_FILE" -O "$XMJ_SRC_FILENAME_COMPRESSED"; then
+    log "Failed to download source file"
+    exit 1
+  fi
 }
 
 xmj_uncompress_src() {
   # Unzip the downloaded file
   # tar -zxvf ./mj-1.16-src.tar.gz
+
+  log "uncompressing source file"
 
   tar -zxvf ./"$XMJ_SRC_FILENAME_COMPRESSED"
 
@@ -111,6 +163,8 @@ xmj_adjust_src_port_number() {
   echo 'port number used by any of the machines'
   echo ''
   echo "================================================================="
+
+  log "Adjusting port number in source"
 
   # Go to the extracted folder
   # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
@@ -174,6 +228,7 @@ xmj_adjust_src_executables_path () {
   # (same folder for ease of use but adjust accordingly if placing somewhere else)
   # So for the purpose of the macOS app bundle only:
 
+  log "Adjusting executable paths in source"
 
   # Go to the extracted folder
   # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
@@ -219,7 +274,7 @@ install_compiling_essentials() {
   #
   # Install essential files for compiling
   #
-  # TODO: Pre-check installed, in which case, skip
+  # TODO: DONE - Pre-check installed, in which case, skip
   #
   ####################################
   #
@@ -229,7 +284,17 @@ install_compiling_essentials() {
   echo " Download Homebrew and required packages"
   echo "================================================================="
 
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+  log "Installing compiling essentials"
+
+  if ! command -v brew &> /dev/null; then
+    log "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+  else
+    log "Homebrew is already installed. Updating..."
+    brew update
+  fi
+
+  # /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 
   # Install GTK+, a package needed for the making the graphical interface from homebrew
   brew install gtk+
@@ -250,6 +315,8 @@ make_executables() {
   echo "================================================================="
   echo " Creating the executables"
   echo "================================================================="
+
+  log "Making the executable"
 
   # Go to the extracted folder
   # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
@@ -304,6 +371,8 @@ app_bundle_create_tree() {
   echo " Create folders tree that is the App Bundle"
   echo "================================================================="
 
+  log "Creating App Bundle tree"
+
   mkdir "$APP_NAME"
   cd "$APP_NAME" || { echo "app_bundle_create_tree: Failed to change directory to ${APP_NAME}"; exit; }
 
@@ -337,6 +406,8 @@ app_bundle_create_info_plist() {
   echo " Create Info.plist in Contents folder"
   echo "================================================================="
 
+  log "Creating App Bundle plist"
+
   cd "$APP_NAME" || { echo "app_bundle_create_info_plist: Failed to change directory to ${APP_NAME}"; exit; }
 
   echo '<?xml version="1.0" encoding="UTF-8"?>
@@ -366,6 +437,11 @@ app_bundle_create_info_plist() {
   </dict>
   </plist>' > Info.plist
 
+  # Adjust the version number
+  if [ "$XMJ_VERSION" != "1.16" ]; then
+    sed -i "" "s/<string>1.16<\/string>/<string>$XMJ_VERSION<\/string>/" Info.plist
+  fi
+
   cd ..
 }
 
@@ -384,6 +460,8 @@ app_bundle_create_launch_miniscript() {
   echo "================================================================="
   echo " Create miniscript in Contents/MacOS folder"
   echo "================================================================="
+
+  log "Creating App Bundle launch miniscript"
 
   cd "$APP_NAME/Contents/MacOS" || { echo "app_bundle_create_launch_miniscript: Failed to change directory to ${APP_NAME}/Contents/MacOS"; exit; }
 
@@ -408,6 +486,8 @@ app_bundle_copy_executables() {
   echo "================================================================="
   echo " Copy the executables and tileset into the Contents/Macos folder"
   echo "================================================================="
+
+  log "copying executables in App Bundle "
 
   # cd MacOS   || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/MacOS' folder"; exit; }
 
@@ -467,6 +547,9 @@ app_bundle_prepare_and_install_iconset() {
   # 
   # in the end, you will end up with an iconset `xmj.icns`
 
+  log "Installing iconset in App Bundle "
+
+
   echo "In order to trust your application, you should create the iconset yourself"
   echo "following the instructions in this script file of the Squizzy github, or other."
   echo "Alternatively, the file can be downloaded from the github this script was gotten from"
@@ -508,14 +591,7 @@ app_bundle_install_to_Applications() {
   echo " Copy the app bundle to the Applications folder/Launchpad"
   echo "================================================================="
 
-  if [ -d "/Applications/$APP_NAME" ]; then
-      if confirm "XMJ Mahjong is already installed. Reinstall?"; then
-          rm -rf "/Applications/$APP_NAME"
-      else
-          echo "Installation cancelled."
-          exit 0
-      fi
-  fi
+  log "copying App Bundle to /Applications"
 
   cp -R "$APP_NAME" /Applications
 }
@@ -543,8 +619,10 @@ install_dylibbundler() {
   # - points the executables to these versions:
 
   echo "========================================================"
-  echo " Download dylibbundler"
+  echo " Installing dylibbundler"
   echo "========================================================"
+
+  log "installing dylibbundler"
 
   # # Install the app using homebrew
   brew install dylibbundler
@@ -585,6 +663,8 @@ execute_dylibbundler() {
   echo " Run dylibbundler"
   echo "========================================================"
 
+  log "Executing dylibbundler "
+
   cd /Applications ||  { echo "execute_dylibbundler: Failed to change directory to /Applications"; exit; }
 
   /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/xmj -d "./$APP_LIBS" -cd -ns -of
@@ -596,6 +676,9 @@ execute_dylibbundler() {
 }
 
 this_script_cleanup() {
+
+  log "Cleaning up"
+
   if [ "$CLEANUP" = true ]; then
     # remove downloaded compressed src
     rm "$XMJ_SRC_FILENAME_COMPRESSED"
@@ -608,20 +691,26 @@ this_script_cleanup() {
   fi
 }
 
+main() {
+  check_dependencies
+  check_existing_installation
+  xmj_download_src
+  xmj_uncompress_src
+  xmj_adjust_src_port_number
+  xmj_adjust_src_executables_path
+  install_compiling_essentials
+  make_executables
+  app_bundle_create_tree
+  app_bundle_create_info_plist
+  app_bundle_create_launch_miniscript
+  app_bundle_copy_executables
+  app_bundle_prepare_and_install_iconset
+  # install_dylibbundler
+  # execute_dylibbundler
+  app_bundle_install_to_Applications
+  log "Installation completed successfully"
+  trap this_script_cleanup EXIT
 
-xmj_download_src
-xmj_uncompress_src
-xmj_adjust_src_port_number
-xmj_adjust_src_executables_path
-install_compiling_essentials
-make_executables
-app_bundle_create_tree
-app_bundle_create_info_plist
-app_bundle_create_launch_miniscript
-app_bundle_copy_executables
-app_bundle_prepare_and_install_iconset
-# install_dylibbundler
-# execute_dylibbundler
-app_bundle_install_to_Applications
-this_script_cleanup
+}
 
+main
