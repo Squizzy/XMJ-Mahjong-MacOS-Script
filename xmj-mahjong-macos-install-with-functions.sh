@@ -71,7 +71,7 @@ check_dependencies() {
   command -v sed >/dev/null 2>&1 || { echo >&2 "sed is required but not installed. Aborting."; exit 1; }
 }
 
-check_existing_installation() {
+check_existing_application_installation() {
   if [ -d "/Applications/$APP_NAME" ]; then
     if confirm "XMJ Mahjong is already installed. Reinstall?"; then
       log "Removing existing installation"
@@ -268,6 +268,14 @@ xmj_adjust_src_executables_path () {
   cd ..
 }
 # This concludes the essential code changes - could be done in a smarter way, presumably.
+
+check_xcode_cli_tools() {
+  if ! xcode-select -p &> /dev/null; then
+    log "Xcode Command Line Tools are not installed. Please install them and try again."
+    xcode-select --install
+    exit 1
+  fi
+}
 
 install_compiling_essentials() {
   ####################################
@@ -596,7 +604,8 @@ app_bundle_install_to_Applications() {
   cp -R "$APP_NAME" /Applications
 }
 
-# Below two functions is content that may be unnecessary now - for my reference just in case
+# Below two functions with dylibbundler are for portability.
+# With this script, it is not necessary unless the app is prepared to be redistributed.
 install_dylibbundler() {
   ####################################
   #
@@ -693,7 +702,8 @@ this_script_cleanup() {
 
 main() {
   check_dependencies
-  check_existing_installation
+  check_existing_application_installation
+  check_xcode_cli_tools
   xmj_download_src
   xmj_uncompress_src
   xmj_adjust_src_port_number
