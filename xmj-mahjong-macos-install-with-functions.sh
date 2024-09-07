@@ -561,6 +561,7 @@ app_bundle_prepare_and_install_iconset() {
   log "Installing iconset in App Bundle "
 
   echo "================================================================="
+  echo "Generating the xmj iconset for MacOS"
   echo
   echo "In order to trust your application, you should create the iconset yourself"
   echo "following the instructions in this script file of the Squizzy github, or other."
