@@ -6,6 +6,7 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
+# 2024-09-06 - Version 0.5 - tested xmj-1.16 (-with-functions version) as working on Sonoma/Intel
 # 2024-09-05 - Version 0.4 - structuring into function, untested, probably broken
 # 2024-04-24 - Version 0.3 - first Beta
 # 2024-04-24 - Version 0.2
