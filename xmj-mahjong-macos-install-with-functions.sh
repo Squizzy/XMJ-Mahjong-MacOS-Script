@@ -43,11 +43,11 @@ while getopts ":v:lcdh" opt; do
   esac
 done
 
-XMJ_SRC_FILENAME="mj-"$XMJ_VERSION
-XMJ_SRC_FILENAME_COMPRESSED=$XMJ_SRC_FILENAME"-src.tar.gz"
+XMJ_SRC_FILENAME="mj-"$XMJ_VERSION"-src"
+XMJ_SRC_FILENAME_COMPRESSED=$XMJ_SRC_FILENAME".tar.gz"
 
 XMJ_SRC_WEBSITE="https://mahjong.julianbradfield.org/Source"
-XMJ_SRC_REMOTE_FILE="$XMJ_SRC_WEBSITE/$XMJ_SRC_FILENAME"
+XMJ_SRC_REMOTE_FILE="$XMJ_SRC_WEBSITE/$XMJ_SRC_FILENAME_COMPRESSED"
 
 TEMP_FOLDER="XMJ-MacOS-Prep"
 
@@ -83,8 +83,8 @@ check_existing_application_installation() {
   fi
 }
 
-confirm() {
 # generic confirmation request function
+confirm() {
   read -r -p "$1 [y/N] " response
   case "$response" in
     [yY][eE][sS]|[yY]) 
@@ -124,7 +124,9 @@ xmj_download_src() {
 
   # Download XMJ Mahjong source code from its original website (from Julian Bradfield)
   # curl https://mahjong.julianbradfield.org/Source/mj-1.16-src.tar.gz -O mj-1.16-src.tar.gz
-  if ! curl "$XMJ_SRC_REMOTE_FILE" -O "$XMJ_SRC_FILENAME_COMPRESSED"; then
+  echo "$XMJ_SRC_REMOTE_FILE"
+  echo "$XMJ_SRC_FILENAME_COMPRESSED"
+  if ! curl -O "$XMJ_SRC_REMOTE_FILE" ; then
     log "Failed to download source file"
     exit 1
   fi
@@ -416,7 +418,7 @@ app_bundle_create_info_plist() {
 
   log "Creating App Bundle plist"
 
-  cd "$APP_NAME" || { echo "app_bundle_create_info_plist: Failed to change directory to ${APP_NAME}"; exit; }
+  cd "$APP_NAME/Contents" || { echo "app_bundle_create_info_plist: Failed to change directory to ${APP_NAME}"; exit; }
 
   echo '<?xml version="1.0" encoding="UTF-8"?>
   <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -450,7 +452,7 @@ app_bundle_create_info_plist() {
     sed -i "" "s/<string>1.16<\/string>/<string>$XMJ_VERSION<\/string>/" Info.plist
   fi
 
-  cd ..
+  cd ../..
 }
 
 app_bundle_create_launch_miniscript() {
@@ -557,7 +559,8 @@ app_bundle_prepare_and_install_iconset() {
 
   log "Installing iconset in App Bundle "
 
-
+  echo "================================================================="
+  echo
   echo "In order to trust your application, you should create the iconset yourself"
   echo "following the instructions in this script file of the Squizzy github, or other."
   echo "Alternatively, the file can be downloaded from the github this script was gotten from"
@@ -565,6 +568,8 @@ app_bundle_prepare_and_install_iconset() {
   echo "based on the XMJ original icon file: 'icon.ico'"
   echo "This script will download it by default, but you can disable this by"
   echo "adding a # in from of the 'curl' line below" 
+  echo
+  echo "================================================================="
 
   if [ "$DOWNLOAD_ICONSET" = true ]; then
     # Download the iconset from Squizzy's github straight into the Resources folder 
