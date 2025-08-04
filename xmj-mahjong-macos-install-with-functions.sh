@@ -226,7 +226,7 @@ xmj_adjust_src_port_number() {
   cd ..
 }
 
-xmj_adjust_src_executables_path () {
+xmj_adjust_src_executables_path() {
   ####################################
   #
   # Ensure mj-player and mj-server can 
@@ -448,21 +448,21 @@ app_bundle_create_info_plist() {
   # Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-SW1
 
   # set the variables of interest
-  CF_BUNDLE_DISPLAY_NAME = "XMJ Mahjong"
-  CF_BUNDLE_NAME = ${CF_BUNDLE_DISPLAY_NAME}
-  CF_BUNDLE_INFO_STRING = "XMJ Mahjong (c) 2000-now by Julian Bradfield"
-  # CF_BUNDLE_IDENTIFIER = "com.xmj-mahjong.www"
-  CF_BUNDLE_IDENTIFIER = "org.julianbradfield.mahjong" # This appears more appropriate than the above
-  CF_BUNDLE_EXECUTABLE = "xmj" # This is the main executable file
+  CF_BUNDLE_DISPLAY_NAME="XMJ Mahjong"
+  CF_BUNDLE_NAME=${CF_BUNDLE_DISPLAY_NAME}
+  CF_BUNDLE_INFO_STRING="XMJ Mahjong (c) 2000-now by Julian Bradfield"
+  # CF_BUNDLE_IDENTIFIER="com.xmj-mahjong.www"
+  CF_BUNDLE_IDENTIFIER="org.julianbradfield.mahjong" # This appears more appropriate than the above
+  CF_BUNDLE_EXECUTABLE="xmj" # This is the main executable file
   # CF_BUNDLE_EXECUTABLE = "xmj-script" # This is the script that could be executed instead of the main executable
-  CF_BUNDLE_VERSION = ${XMJ_VERSION}
-  CF_BUNDLE_SHORT_VERSION = ${XMJ_VERSION} + ".0" # maintenance version is not specified in the original
-  CF_BUNDLE_ICON_FILE = "xmj.icns"
-  CF_BUNDLE_INFO_DICT_VERSION = "6.0" # Specified by Apple
-  CF_BUNDLE_PACKAGE_TYPE = "APPL" # Application bundle
+  CF_BUNDLE_VERSION=${XMJ_VERSION}
+  CF_BUNDLE_SHORT_VERSION=${XMJ_VERSION} + ".0" # maintenance version is not specified in the original
+  CF_BUNDLE_ICON_FILE="xmj.icns"
+  CF_BUNDLE_INFO_DICT_VERSION="6.0" # Specified by Apple
+  CF_BUNDLE_PACKAGE_TYPE="APPL" # Application bundle
 
   # Build up the info.plist variables
-  INFO_PLIST = $(cat <<EndOfText
+  INFO_PLIST=$(cat <<EndOfText
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
