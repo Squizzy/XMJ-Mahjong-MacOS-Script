@@ -6,6 +6,7 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
+# 2025-08-04 - Version 0.7 - Added xmj-1.17 support, switched from manual editing patches to proper patching
 # 2025-08-04 - Version 0.6 - Some refactoring for clarity
 # 2024-09-06 - Version 0.5 - tested xmj-1.16 (-with-functions version) as working on Sonoma/Intel
 # 2024-09-05 - Version 0.4 - structuring into function, untested, probably broken
@@ -20,7 +21,7 @@ trap 'echo "Error occurred. Exiting..."; exit 1' ERR
 ENABLE_LOG=false
 CLEANUP=false
 
-XMJ_VERSION="1.16"
+XMJ_VERSION="1.17"
 DOWNLOAD_ICONSET=true
 
 usage() {
@@ -57,6 +58,8 @@ APP_NAME="XMJ Mahjong.app"
 APP_EXECUTABLES="$APP_NAME/Contents/MacOS"
 APP_RESOURCES="$APP_NAME/Contents/Resources"
 APP_LIBS="$APP_NAME/Contents/Libs"
+
+PATCHES_FOLDER="patches"
 
 CREATE_BACKUP=false
 
@@ -98,18 +101,18 @@ confirm() {
   esac
 }
 
-create_temp_folder(){
-  #
-  # Create a folder for the setup
-  log "Create temp folder"
+# create_temp_folder(){
+#   #
+#   # Create a folder for the setup
+#   log "Create temp folder"
 
-  # mkdir XMJ-MacOS-Install
-  mkdir $TEMP_FOLDER
+#   # mkdir XMJ-MacOS-Install
+#   mkdir $TEMP_FOLDER
 
-  # Go to this folder
-  # cd XMJ-MacOS-Install  || { echo "Failed to get to the XMJ-MacOS-Install/ folder"; exit; }
-  cd $TEMP_FOLDER  || { echo "create_temp_folder: Failed to change directory to ${TEMP_FOLDER}"; exit; }
-}
+#   # Go to this folder
+#   # cd XMJ-MacOS-Install  || { echo "Failed to get to the XMJ-MacOS-Install/ folder"; exit; }
+#   cd $TEMP_FOLDER  || { echo "create_temp_folder: Failed to change directory to ${TEMP_FOLDER}"; exit; }
+# }
 
 xmj_download_src() {
   ####################################
@@ -145,6 +148,86 @@ xmj_uncompress_src() {
   # NOTE: This creates the folder $XMJ_SRC_FILENAME and extracts the source in it
 }
 
+xmj_check_files_to_be_patched() {
+  ####################################
+  #
+  # Check if the files to be patched are identical to the ones used to create the patches.
+  # This is to ensure that the patches are not applied to an incorrect version of the source code.
+  #
+  ####################################
+  #
+  # Check that the source files are present and not empty
+  # If not, exit with an error message
+  echo ""
+  echo "================================================================="
+  echo " Checking that the source files to be patched are present and"
+  echo " identical to the ones used to create the patches"
+  echo "================================================================="
+
+  log "Checking source files to be patched"
+
+  if [ ! -d "$XMJ_SRC_FILENAME" ]; then
+    echo "Source directory $XMJ_SRC_FILENAME does not exist. Please check the download."
+    exit 1
+  fi
+
+  if [ ! -f "$XMJ_SRC_FILENAME/gui.c" ]; then
+    echo "Source file gui.c does not exist in $XMJ_SRC_FILENAME. Please check the download."
+    exit 1
+  fi
+
+  if [ ! -f "$XMJ_SRC_FILENAME/controller.c" ]; then
+    echo "Source file controller.c does not exist in $XMJ_SRC_FILENAME. Please check the download."
+    exit 1
+  fi
+
+  if [ ! -f "$XMJ_SRC_FILENAME/greedy.c" ]; then
+    echo "Source file greedy.c does not exist in $XMJ_SRC_FILENAME. Please check the download."
+    exit 1
+  fi
+
+  if ! diff "$XMJ_SRC_FILENAME/gui.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/gui_xmj_$XMJ_VERSION.c"; then
+    echo "Source file $XMJ_SRC_FILENAME/gui.c is not identical to the file needed to be patched: $PATCHES_FOLDER/xmj_$XMJ_VERSION/gui_xmj_$XMJ_VERSION.c. Please check the download."
+    exit 1
+  fi
+
+  if ! diff "$XMJ_SRC_FILENAME/controller.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/controller_xmj_$XMJ_VERSION.c"; then
+    echo "Source file controller.c is not identical to the file needed to be patched. Please check the download."
+    exit 1
+  fi
+
+  if ! diff "$XMJ_SRC_FILENAME/greedy.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/greedy_xmj_$XMJ_VERSION.c"; then
+    echo "Source file greedy.c is not identical to the file needed to be patched. Please check the download."
+    exit 1
+  fi
+
+  echo "All source files are identical to the files needed to be patched."
+  echo "================================================================="
+}
+
+xmj_create_patches_for_version() {
+  ####################################
+  #
+  # Create the patches
+  #
+  ####################################
+  echo ""
+  echo "================================================================="
+  echo " Creating the patch files for version $XMJ_VERSION"
+  echo "================================================================="
+
+  log "Generating the patch files for version $XMJ_VERSION"
+
+  cd patches || { echo "xmj_create_patches: Failed to change directory to patches"; exit; }
+  # Create the patches for the source files
+
+  sh create_patches_for_version.sh -v $XMJ_VERSION || { echo "xmj_create_patches: Failed to create patches for version $XMJ_VERSION"; exit; }
+
+  echo "patches files for xmj_$XMJ_VERSION created"
+  echo "================================================================="
+  cd ..
+}
+
 xmj_adjust_src_port_number() {
   ####################################
   #
@@ -158,14 +241,14 @@ xmj_adjust_src_port_number() {
   # Hopefully this can be addressed later but this will cause confusion for the forseeable future
   #
   # For now, change the XMJ Mahjong default port to 4000 (for example):
+  echo ""
   echo "================================================================="
   echo " Modify source code as needed for Apple"
-  echo ''
-  echo 'IMPORTANT NOTE: As Apple now uses port 5000 for its own functionality'
-  echo 'this redefines it to port 4000. On non-Apple XMJ, this value will need'
-  echo 'to be matched. 4000 can be changed as desired as long as it is not a'
-  echo 'port number used by any of the machines'
-  echo ''
+  echo ""
+  echo "IMPORTANT NOTE: As Apple now uses port 5000 for its own functionality"
+  echo "this redefines it to port 4000. On non-Apple XMJ, this value will need"
+  echo "to be matched. 4000 can be changed as desired as long as it is not a"
+  echo "port number used by any of the machines"
   echo "================================================================="
 
   log "Adjusting port number in source"
@@ -174,54 +257,62 @@ xmj_adjust_src_port_number() {
   # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
   cd "$XMJ_SRC_FILENAME" || { echo "xmj_adjust_src_port_number: Failed to change directory to extracted ${XMJ_SRC_FILENAME}"; exit; }
 
-  # - in gui.c:
-  # change
-  #     `char address[256] = "localhost:5000";`
-  # to 
-  #     `char address[256] = "localhost:4000";`
-  if [ $CREATE_BACKUP = true ] ; then
-    cp gui.c gui.c.backup
-  fi
-  TEXT_TO_SEARCH_FOR='char address[256] = "localhost:5000";'
-  TEXT_TO_REPLACE_WITH='char address[256] = "localhost:4000";'
-  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
-  # sed -i "" 's/char address\[256\] = "localhost:5000"/char address\[256\] = "localhost:4000"/' gui.c
+  patch -u gui.c -i ../patches/gui_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch gui.c"; exit; }
+  patch -u controller.c -i ../patches/controller_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch controller.c"; exit; }
+  patch -u greedy.c -i ../patches/greedy_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch greedy.c"; exit; }
 
-  # change
-  #     `if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {`
-  # to
-  #     `if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {`
-  TEXT_TO_SEARCH_FOR='if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {'
-  TEXT_TO_REPLACE_WITH='if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {'
-  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
-  # sed -i "" 's/if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {/if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {/' gui.c
+  # # - in gui.c:
+  # # change
+  # #     `char address[256] = "localhost:5000";`
+  # # to 
+  # #     `char address[256] = "localhost:4000";`
+  # if [ $CREATE_BACKUP = true ] ; then
+  #   cp gui.c gui.c.backup
+  # fi
+  # TEXT_TO_SEARCH_FOR='char address[256] = "localhost:5000";'
+  # TEXT_TO_REPLACE_WITH='char address[256] = "localhost:4000";'
+  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
+  # # sed -i "" 's/char address\[256\] = "localhost:5000"/char address\[256\] = "localhost:4000"/' gui.c
 
-  # - in controller.c:
-  # change
-  #   `char *address = ":5000";`
-  # to
-  #   `char *address = ":4000";`
-  if [ $CREATE_BACKUP = true ] ; then
-    cp controller.c controller.c.backup
-  fi
-  TEXT_TO_SEARCH_FOR='char *address = ":5000";'
-  TEXT_TO_REPLACE_WITH='char *address = ":4000";'
-  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" controller.c
-  # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' controller.c
+  # # change
+  # #     `if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {`
+  # # to
+  # #     `if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {`
+  # TEXT_TO_SEARCH_FOR='if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {'
+  # TEXT_TO_REPLACE_WITH='if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {'
+  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
+  # # sed -i "" 's/if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {/if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {/' gui.c
 
-  # - in greedy.c:
-  # change
-  #   `char *address = ":5000";`
-  # to
-  #   `char *address = ":4000";`
-  if [ $CREATE_BACKUP = true ] ; then
-    cp greedy.c greedy.c.backup
-  fi
-  TEXT_TO_SEARCH_FOR='char *address = ":5000";'
-  TEXT_TO_REPLACE_WITH='char *address = ":4000";'
-  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" greedy.c
+  # # - in controller.c:
+  # # change
+  # #   `char *address = ":5000";`
+  # # to
+  # #   `char *address = ":4000";`
+  # if [ $CREATE_BACKUP = true ] ; then
+  #   cp controller.c controller.c.backup
+  # fi
+  # TEXT_TO_SEARCH_FOR='char *address = ":5000";'
+  # TEXT_TO_REPLACE_WITH='char *address = ":4000";'
+  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" controller.c
+  # # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' controller.c
 
-  # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' greedy.c
+  # # - in greedy.c:
+  # # change
+  # #   `char *address = ":5000";`
+  # # to
+  # #   `char *address = ":4000";`
+  # if [ $CREATE_BACKUP = true ] ; then
+  #   cp greedy.c greedy.c.backup
+  # fi
+  # TEXT_TO_SEARCH_FOR='char *address = ":5000";'
+  # TEXT_TO_REPLACE_WITH='char *address = ":4000";'
+  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" greedy.c
+
+  # # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' greedy.c
+
+  echo "Patches to adjust default network port number "
+  echo "from 5000 to 4000 applied"
+  echo "================================================================="
 
   cd ..
 }
@@ -244,56 +335,108 @@ xmj_adjust_src_executables_path() {
   # as the executable xmj when it is in the macOS app bundle. 
   # (same folder for ease of use but adjust accordingly if placing somewhere else)
   # So for the purpose of the macOS app bundle only:
+  echo ""
+  echo "================================================================="
+  echo " Adjusting executable relative paths in source code"
+  echo ""
+  echo " When apps are placed in Apple bundles, the main executable if expected to be found in /Contents/MacOS"
+  echo " If this main executable needs to run other executables, these need to be found in this bundle."
+  echo " by default the PATH variable would be looked for to find an executable but this doesn't work"
+  echo " as it is not reasonable to have a path per app bundle."
+  echo " Current fix is to make sure the other executables are in the same folder and are called using the './' local path."
+  echo "================================================================="
 
-  log "Adjusting executable paths in source"
+  log "Adjusting executable relative paths in source"
 
   # Go to the extracted folder
   # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
   cd "$XMJ_SRC_FILENAME" || { echo "xmj_adjust_src_executables_path: Failed to change directory to extracted ${XMJ_SRC_FILENAME}"; exit; }
 
-  # - in gui.c:
-  # somewhere above the two changes below, as a global define for the file:
-  #  `#define macOS`
-  TEXT_TO_FIND='#include "gtkrc.h"'
-  TEXT_TO_REPLACE_WITH='#include "gtkrc.h"\n#define MacOS'
-  sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE|" gui.c
-  # sed -i "" 's/#include "gtkrc.h"/#include "gtkrc.h"\n#define MacOS/' gui.c
+  patch -u gui.c -i ../patches/gui_xmj_"$XMJ_VERSION"_executables_relative_path_fix.patch || { echo "xmj_adjust_src_executables_path: Failed to patch gui.c"; exit; }
 
-  # - also in gui.c
-  # change
-  #     `strcpy(cmd, "mj-server --id-order-seats --server ");`
-  # to
-  # ```
-  #   #ifndef macOS
-  #       strcpy(cmd, "mj-server --id-order-seats --server ");
-  #   #else
-  #       strcpy(cmd, "./mj-server --id-order-seats --server ");
-  #   #endif
-  # ```
-  TEXT_TO_FIND='strcpy(cmd, "mj-server --id-order-seats --server ");'
-  TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\t\t\tstrcpy(cmd, "mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif'
-  sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
-  # sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef MacOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
 
-  # also in gui.c:
-  # change:
-  # 	`strcpy(cmd,"mj-player --server ");`
-  # to 
-  # ```
-  #     #ifndef macOS
-  #         strcpy(cmd,"mj-player --server ");
-  #     #else
-  #         strcpy(cmd,"./mj-player --server ");
-  #     #endif
-  # ```
-  TEXT_TO_FIND='strcpy(cmd,"mj-player --server ");'
-  TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif'
-  sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
-  # sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
+  # # - in gui.c:
+  # # somewhere above the two changes below, as a global define for the file:
+  # #  `#define macOS`
+  # TEXT_TO_FIND='#include "gtkrc.h"'
+  # TEXT_TO_REPLACE_WITH='#include "gtkrc.h"\n#define MacOS'
+  # sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE|" gui.c
+  # # sed -i "" 's/#include "gtkrc.h"/#include "gtkrc.h"\n#define MacOS/' gui.c
+
+  # # - also in gui.c
+  # # change
+  # #     `strcpy(cmd, "mj-server --id-order-seats --server ");`
+  # # to
+  # # ```
+  # #   #ifndef macOS
+  # #       strcpy(cmd, "mj-server --id-order-seats --server ");
+  # #   #else
+  # #       strcpy(cmd, "./mj-server --id-order-seats --server ");
+  # #   #endif
+  # # ```
+  # TEXT_TO_FIND='strcpy(cmd, "mj-server --id-order-seats --server ");'
+  # TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\t\t\tstrcpy(cmd, "mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif'
+  # sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
+  # # sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef MacOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
+
+  # # also in gui.c:
+  # # change:
+  # # 	`strcpy(cmd,"mj-player --server ");`
+  # # to 
+  # # ```
+  # #     #ifndef macOS
+  # #         strcpy(cmd,"mj-player --server ");
+  # #     #else
+  # #         strcpy(cmd,"./mj-player --server ");
+  # #     #endif
+  # # ```
+  # TEXT_TO_FIND='strcpy(cmd,"mj-player --server ");'
+  # TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif'
+  # sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
+  # # sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
+
+  echo "patches to adjust executables relative paths done"
+  echo "================================================================="
 
   cd ..
 }
 # This concludes the essential code changes - could be done in a smarter way, presumably.
+
+xmj_patch_tiles_display_bug_fix_for_xmj_1_17() {
+
+  ####################################
+  #
+  # Bug fix for xmj-1.17
+  # The tiles are not displayed correctly in MacOS, as the default colour values
+  # used for the gdk_draw_pixbuf is not well referenced in the gtk+ version of MacOS. 
+  # To fix this, overriding the default value with a defined Graphics Context done
+  #
+  # gdk_draw_pixbuf is a new improvement in xmj-1.17, which is not present in xmj-1.16 and before
+  # which actually modernises the previous implementation and allows fixing of some issues
+  # observed in previous versions
+  #
+  ####################################
+  
+  echo ""
+  echo "================================================================="
+  echo " Tiles Display Bug fix for xmj-1.17"
+  echo "================================================================="
+
+  log "Bug fix for xmj-1.17"
+
+  # Go to the extracted folder
+  cd "$XMJ_SRC_FILENAME" || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to change directory to extracted ${XMJ_SRC_FILENAME}"; exit; }
+
+  # # Fix the bug in gui.c
+  # sed -i "" 's/gtk_widget_show_all(GTK_WIDGET(window));/gtk_widget_show_all(GTK_WIDGET(window));\n\t\tgtk_window_set_default_size(GTK_WINDOW(window),800,600);/' gui.c
+  patch -u gui.c -i ../patches/gui_xmj_"$XMJ_VERSION"_tiles_display_fix.patch || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to patch gui.c"; exit; }
+
+  cd ..
+
+  echo "Tiles Display Bug fix for xmj-1.17 applied"
+  echo "================================================================="
+
+}
 
 check_xcode_cli_tools() {
   if ! xcode-select -p &> /dev/null; then
@@ -359,6 +502,9 @@ make_executables() {
   make
 
   cd ..
+
+  echo "Executables created in ${XMJ_SRC_FILENAME}"
+  echo "================================================================="
 }
 
 app_bundle_create_tree() {
@@ -402,10 +548,15 @@ app_bundle_create_tree() {
   # First create the folder tree
 
   echo "================================================================="
-  echo " Create folders tree that is the App Bundle"
+  echo " Creating folders tree that is the App Bundle"
   echo "================================================================="
 
   log "Creating App Bundle tree"
+
+  if [ -d "$APP_NAME" ]; then
+    log "Removing existing App Bundle folder $APP_NAME"
+    rm -rf "$APP_NAME"
+  fi
 
   mkdir "$APP_NAME"
   cd "$APP_NAME" || { echo "app_bundle_create_tree: Failed to change directory to ${APP_NAME}"; exit; }
@@ -418,6 +569,9 @@ app_bundle_create_tree() {
   mkdir Libs
 
   cd ../..
+
+  echo "App Bundle tree created in ${APP_NAME}"
+  echo "================================================================="
 }
 
 app_bundle_create_info_plist() {
@@ -453,13 +607,15 @@ app_bundle_create_info_plist() {
   CF_BUNDLE_INFO_STRING="XMJ Mahjong (c) 2000-now by Julian Bradfield"
   # CF_BUNDLE_IDENTIFIER="com.xmj-mahjong.www"
   CF_BUNDLE_IDENTIFIER="org.julianbradfield.mahjong" # This appears more appropriate than the above
-  CF_BUNDLE_EXECUTABLE="xmj" # This is the main executable file
-  # CF_BUNDLE_EXECUTABLE = "xmj-script" # This is the script that could be executed instead of the main executable
+  # CF_BUNDLE_EXECUTABLE="xmj" # This is the main executable file
+  CF_BUNDLE_EXECUTABLE="xmj-script" # This is the script that could be executed instead of the main executable
   CF_BUNDLE_VERSION=${XMJ_VERSION}
-  CF_BUNDLE_SHORT_VERSION=${XMJ_VERSION} + ".0" # maintenance version is not specified in the original
-  CF_BUNDLE_ICON_FILE="xmj.icns"
+  CF_BUNDLE_SHORT_VERSION="${XMJ_VERSION}.0" # maintenance version is not specified in the original
+  CF_BUNDLE_ICON_FILE="xmj"
   CF_BUNDLE_INFO_DICT_VERSION="6.0" # Specified by Apple
   CF_BUNDLE_PACKAGE_TYPE="APPL" # Application bundle
+  LS_MINIMUM_SYSTEM_VERSION="10.13" # Minimum macOS version supported (Sequoia, 2024) - for now
+
 
   # Build up the info.plist variables
   INFO_PLIST=$(cat <<EndOfText
@@ -487,15 +643,22 @@ app_bundle_create_info_plist() {
     <string>${CF_BUNDLE_INFO_DICT_VERSION}</string>
     <key>CFBundlePackageType</key>
     <string>${CF_BUNDLE_PACKAGE_TYPE}</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>${LS_MINIMUM_SYSTEM_VERSION}</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
   </dict>
 </plist>
 EndOfText
   )
 
   # Save the info.plist file
-  echo -e "$INFO_PLIST" > Info.plist  || { echo "app_bundle_create_info_plist: Failed to save Info.plist to ${APP_NAME}/Contents"; exit; }
+  printf "$INFO_PLIST" > Info.plist  || { echo "app_bundle_create_info_plist: Failed to save Info.plist to ${APP_NAME}/Contents"; exit; }
 
   cd ../..
+
+  echo "Info.plist created in ${APP_NAME}/Contents"
+  echo "================================================================="
 }
 
 app_bundle_create_launch_miniscript() {
@@ -526,6 +689,9 @@ app_bundle_create_launch_miniscript() {
   chmod +x xmj-script
 
   cd ../../..
+
+  echo "xmj-script created in ${APP_NAME}/Contents/MacOS"
+  echo "================================================================="
 }
 
 app_bundle_copy_executables() {
@@ -645,12 +811,16 @@ app_bundle_prepare_and_install_iconset() {
 app_bundle_install_to_Applications() {
   # Copy the app bundle to the applications folder / launchpad
   echo "================================================================="
-  echo " Copy the app bundle to the Applications folder/Launchpad"
+  echo " Copying the app bundle to the Applications folder"
+  echo " This should set it automatically visible in the Launchpad"
   echo "================================================================="
 
   log "copying App Bundle to /Applications"
 
-  cp -R "$APP_NAME" /Applications
+  cp -R "$APP_NAME" /Applications || { echo "app_bundle_install_to_Applications: Failed to copy ${APP_NAME} to /Applications"; exit; }
+
+  echo "App Bundle copied to /Applications"
+  echo "================================================================="
 }
 
 # Below two functions with dylibbundler are for portability.
@@ -676,14 +846,22 @@ install_dylibbundler() {
   # - copy them into the bundle (here, creating a new folder `libs` under `XMJ Mahjong.app/Contents/`), 
   # - points the executables to these versions:
 
+  echo ""
   echo "========================================================"
   echo " Installing dylibbundler"
+  echo " This will identify and load the libraries used by the "
+  echo " executables xmj, mj-player and mj-server"
+  echo " into the App Bundle, so it can be shared with others"
   echo "========================================================"
 
   log "installing dylibbundler"
 
   # # Install the app using homebrew
   brew install dylibbundler
+
+  echo "dylibbundler installed successfully"
+  echo "========================================================"
+
 }
 
 execute_dylibbundler() {
@@ -716,14 +894,16 @@ execute_dylibbundler() {
   # /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
   # 
   # /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
-
+  echo ""
   echo "========================================================"
-  echo " Run dylibbundler"
+  echo " Running dylibbundler"
+  echo " This will copy the libraries used by the executables"
+  echo " into the App Bundle, so it can be shared with others"
   echo "========================================================"
 
   log "Executing dylibbundler "
 
-  cd /Applications ||  { echo "execute_dylibbundler: Failed to change directory to /Applications"; exit; }
+  # cd /Applications ||  { echo "execute_dylibbundler: Failed to change directory to /Applications"; exit; }
 
   /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/xmj -d "./$APP_LIBS" -cd -ns -of
   
@@ -731,6 +911,8 @@ execute_dylibbundler() {
   
   /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/mj-server -d "./$APP_LIBS" -cd -ns -of
 
+  echo "dylibbundler executed successfully"
+  echo "========================================================"
 }
 
 this_script_cleanup() {
@@ -755,8 +937,11 @@ main() {
   check_xcode_cli_tools
   xmj_download_src
   xmj_uncompress_src
+  xmj_check_files_to_be_patched
+  xmj_create_patches_for_version
   xmj_adjust_src_port_number
   xmj_adjust_src_executables_path
+  xmj_patch_tiles_display_bug_fix_for_xmj_1_17
   install_compiling_essentials
   make_executables
   app_bundle_create_tree
