@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/env zsh
 
 # Script to install Julian Bradfield XMJ Mahjong to MacOS
 #
@@ -181,13 +181,19 @@ xmj_adjust_src_port_number() {
   if [ $CREATE_BACKUP = true ] ; then
     cp gui.c gui.c.backup
   fi
-  sed -i "" 's/char address\[256\] = "localhost:5000"/char address\[256\] = "localhost:4000"/' gui.c
+  TEXT_TO_SEARCH_FOR='char address[256] = "localhost:5000";'
+  TEXT_TO_REPLACE_WITH='char address[256] = "localhost:4000";'
+  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
+  # sed -i "" 's/char address\[256\] = "localhost:5000"/char address\[256\] = "localhost:4000"/' gui.c
 
   # change
   #     `if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {`
   # to
   #     `if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {`
-  sed -i "" 's/if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {/if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {/' gui.c
+  TEXT_TO_SEARCH_FOR='if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {'
+  TEXT_TO_REPLACE_WITH='if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {'
+  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
+  # sed -i "" 's/if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {/if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {/' gui.c
 
   # - in controller.c:
   # change
@@ -197,7 +203,10 @@ xmj_adjust_src_port_number() {
   if [ $CREATE_BACKUP = true ] ; then
     cp controller.c controller.c.backup
   fi
-  sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' controller.c
+  TEXT_TO_SEARCH_FOR='char *address = ":5000";'
+  TEXT_TO_REPLACE_WITH='char *address = ":4000";'
+  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" controller.c
+  # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' controller.c
 
   # - in greedy.c:
   # change
@@ -207,7 +216,11 @@ xmj_adjust_src_port_number() {
   if [ $CREATE_BACKUP = true ] ; then
     cp greedy.c greedy.c.backup
   fi
-  sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' greedy.c
+  TEXT_TO_SEARCH_FOR='char *address = ":5000";'
+  TEXT_TO_REPLACE_WITH='char *address = ":4000";'
+  sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" greedy.c
+
+  # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' greedy.c
 
   cd ..
 }
@@ -240,7 +253,10 @@ xmj_adjust_src_executables_path () {
   # - in gui.c:
   # somewhere above the two changes below, as a global define for the file:
   #  `#define macOS`
-  sed -i "" 's/#include "gtkrc.h"/#include "gtkrc.h"\n#define MacOS/' gui.c
+  TEXT_TO_FIND='#include "gtkrc.h"'
+  TEXT_TO_REPLACE_WITH='#include "gtkrc.h"\n#define MacOS'
+  sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE|" gui.c
+  # sed -i "" 's/#include "gtkrc.h"/#include "gtkrc.h"\n#define MacOS/' gui.c
 
   # - also in gui.c
   # change
@@ -253,7 +269,10 @@ xmj_adjust_src_executables_path () {
   #       strcpy(cmd, "./mj-server --id-order-seats --server ");
   #   #endif
   # ```
-  sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef MacOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
+  TEXT_TO_FIND='strcpy(cmd, "mj-server --id-order-seats --server ");'
+  TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\t\t\tstrcpy(cmd, "mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif'
+  sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
+  # sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef MacOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
 
   # also in gui.c:
   # change:
@@ -266,7 +285,10 @@ xmj_adjust_src_executables_path () {
   #         strcpy(cmd,"./mj-player --server ");
   #     #endif
   # ```
-  sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
+  TEXT_TO_FIND='strcpy(cmd,"mj-player --server ");'
+  TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif'
+  sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
+  # sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
 
   cd ..
 }
@@ -421,37 +443,87 @@ app_bundle_create_info_plist() {
 
   cd "$APP_NAME/Contents" || { echo "app_bundle_create_info_plist: Failed to change directory to ${APP_NAME}"; exit; }
 
-  echo '<?xml version="1.0" encoding="UTF-8"?>
-  <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-  <plist version="1.0">
-  <dict>
-    <key>CFBundleGetInfoString</key>
-    <string>XMJ Mahjong (c) 2000-now by Julian Bradfield</string>
-    <key>CFBundleExecutable</key>
-    <string>xmj-script</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.xmj-mahjong.www</string>
-    <key>CFBundleName</key>
-    <string>XMJ Mahjong</string>
-    <key>CFBundleIconFile</key>
-    <string>xmj.icns</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.16</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>IFMajorVersion</key>
-    <integer>1</integer>
-    <key>IFMinorVersion</key>
-    <integer>16</integer>
-  </dict>
-  </plist>' > Info.plist
+  # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/
+  # Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-SW1
 
-  # Adjust the version number
-  if [ "$XMJ_VERSION" != "1.16" ]; then
-    sed -i "" "s/<string>1.16<\/string>/<string>$XMJ_VERSION<\/string>/" Info.plist
-  fi
+  CF_BUNDLE_DISPLAY_NAME = "XMJ Mahjong"
+  CF_BUNDLE_NAME = ${CF_BUNDLE_DISPLAY_NAME}
+  CF_BUNDLE_INFO_STRING = "XMJ Mahjong (c) 2000-now by Julian Bradfield"
+  # CF_BUNDLE_IDENTIFIER = "com.xmj-mahjong.www"
+  CF_BUNDLE_IDENTIFIER = "org.julianbradfield.mahjong" # This appears more appropriate than the above
+  CF_BUNDLE_EXECUTABLE = "xmj" # This is the main executable file
+  # CF_BUNDLE_EXECUTABLE = "xmj-script" # This is the script that could be executed instead of the main executable
+  CF_BUNDLE_VERSION = ${XMJ_VERSION}
+  CF_BUNDLE_SHORT_VERSION = ${XMJ_VERSION} + ".0" # maintenance version is not specified in the original
+  CF_BUNDLE_ICON_FILE = "xmj.icns"
+  CF_BUNDLE_INFO_DICT_VERSION = "6.0" # Specified by Apple
+  CF_BUNDLE_PACKAGE_TYPE = "APPL" # Application bundle
+
+
+  INFO_PLIST = $(cat <<EOF
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n
+  <plist version="1.0">\n
+    <dict>
+      <key>CFBundleDisplayName</key>
+      <string>${CF_BUNDLE_DISPLAY_NAME}</string>
+      <key>CFBundleName</key>
+      <string>${CF_BUNDLE_NAME}</string>
+      <key>CFBundleGetInfoString</key>
+      <string>${CF_BUNDLE_INFO_STRING}</string>
+      <key>CFBundleIdentifier</key>
+      <string>${CF_BUNDLE_IDENTIFIER}</string>
+      <key>CFBundleExecutable</key>
+      <string>${CF_BUNDLE_EXECUTABLE}</string>
+      <key>CFBundleVersion</key>
+      <string>${CF_BUNDLE_VERSION}</string>
+      <key>CFBundleShortVersionString</key>
+      <string>${CF_BUNDLE_SHORT_VERSION}</string>
+      <key>CFBundleIconFile</key>
+      <string>${CF_BUNDLE_ICON_FILE}</string>
+      <key>CFBundleInfoDictionaryVersion</key>
+      <string>${CF_BUNDLE_INFO_DICT_VERSION}</string>
+      <key>CFBundlePackageType</key>
+      <string>${CF_BUNDLE_PACKAGE_TYPE}</string>
+    </dict>
+  </plist>
+EOF
+  )
+
+  echo -e "$INFO_PLIST" > Info.plist  || { echo "app_bundle_create_info_plist: Failed to save Info.plist to ${APP_NAME}/Contents"; exit; }
+
+#   echo '<?xml version="1.0" encoding="UTF-8"?>' > Info.plist
+#   echo '<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> Info.plist
+#   echo '<plist version="1.0">' >> Info.plist
+#   echo '  <dict>' >> Info.plist
+#   echo '  <key>CFBundleGetInfoString</key>' >> Info.plist
+#   echo '  <string>${CF_BUNDLE_INFO_STRING}</string>' >> Info.plist
+# # echo '  <string>XMJ Mahjong (c) 2000-now by Julian Bradfield</string>' >> Info.plist
+#   echo '  <key>CFBundleExecutable</key>' >> Info.plist
+#   echo '  <string>xmj-script</string>' >> Info.plist
+#   echo '  <key>CFBundleIdentifier</key>' >> Info.plist
+#   echo '  <string>com.xmj-mahjong.www</string>' >> Info.plist
+#   echo '  <key>CFBundleName</key>' >> Info.plist
+#   echo '  <string>XMJ Mahjong</string>' >> Info.plist
+#   echo '  <key>CFBundleIconFile</key>' >> Info.plist
+#   echo '  <string>xmj.icns</string>' >> Info.plist
+#   echo '  <key>CFBundleShortVersionString</key>' >> Info.plist
+#   echo '  <string>1.16</string>' >> Info.plist
+#   echo '  <key>CFBundleInfoDictionaryVersion</key>' >> Info.plist
+#   echo '  <string>6.0</string>' >> Info.plist
+#   echo '  <key>CFBundlePackageType</key>' >> Info.plist
+#   echo '  <string>APPL</string>' >> Info.plist
+# # echo '  <key>IFMajorVersion</key>' >> Info.plist
+# # echo '  <integer>1</integer>' >> Info.plist
+# # echo '  <key>IFMinorVersion</key>' >> Info.plist
+# # echo '  <integer>16</integer>' >> Info.plist
+#   echo '  </dict>' >> Info.plist
+#   echo '</plist>' >> Info.plist
+ 
+  # # Adjust the version number
+  # if [ "$XMJ_VERSION" != "1.16" ]; then
+  #   sed -i "" "s/<string>1.16<\/string>/<string>$XMJ_VERSION<\/string>/" Info.plist
+  # fi
 
   cd ../..
 }
