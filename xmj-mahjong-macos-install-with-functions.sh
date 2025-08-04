@@ -6,6 +6,7 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
+# 2025-08-04 - Version 0.6 - Some refactoring for clarity
 # 2024-09-06 - Version 0.5 - tested xmj-1.16 (-with-functions version) as working on Sonoma/Intel
 # 2024-09-05 - Version 0.4 - structuring into function, untested, probably broken
 # 2024-04-24 - Version 0.3 - first Beta
@@ -446,6 +447,7 @@ app_bundle_create_info_plist() {
   # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/
   # Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-SW1
 
+  # set the variables of interest
   CF_BUNDLE_DISPLAY_NAME = "XMJ Mahjong"
   CF_BUNDLE_NAME = ${CF_BUNDLE_DISPLAY_NAME}
   CF_BUNDLE_INFO_STRING = "XMJ Mahjong (c) 2000-now by Julian Bradfield"
@@ -459,71 +461,39 @@ app_bundle_create_info_plist() {
   CF_BUNDLE_INFO_DICT_VERSION = "6.0" # Specified by Apple
   CF_BUNDLE_PACKAGE_TYPE = "APPL" # Application bundle
 
-
-  INFO_PLIST = $(cat <<EOF
-  <?xml version="1.0" encoding="UTF-8"?>
-  <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n
-  <plist version="1.0">\n
-    <dict>
-      <key>CFBundleDisplayName</key>
-      <string>${CF_BUNDLE_DISPLAY_NAME}</string>
-      <key>CFBundleName</key>
-      <string>${CF_BUNDLE_NAME}</string>
-      <key>CFBundleGetInfoString</key>
-      <string>${CF_BUNDLE_INFO_STRING}</string>
-      <key>CFBundleIdentifier</key>
-      <string>${CF_BUNDLE_IDENTIFIER}</string>
-      <key>CFBundleExecutable</key>
-      <string>${CF_BUNDLE_EXECUTABLE}</string>
-      <key>CFBundleVersion</key>
-      <string>${CF_BUNDLE_VERSION}</string>
-      <key>CFBundleShortVersionString</key>
-      <string>${CF_BUNDLE_SHORT_VERSION}</string>
-      <key>CFBundleIconFile</key>
-      <string>${CF_BUNDLE_ICON_FILE}</string>
-      <key>CFBundleInfoDictionaryVersion</key>
-      <string>${CF_BUNDLE_INFO_DICT_VERSION}</string>
-      <key>CFBundlePackageType</key>
-      <string>${CF_BUNDLE_PACKAGE_TYPE}</string>
-    </dict>
-  </plist>
-EOF
+  # Build up the info.plist variables
+  INFO_PLIST = $(cat <<EndOfText
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleDisplayName</key>
+    <string>${CF_BUNDLE_DISPLAY_NAME}</string>
+    <key>CFBundleName</key>
+    <string>${CF_BUNDLE_NAME}</string>
+    <key>CFBundleGetInfoString</key>
+    <string>${CF_BUNDLE_INFO_STRING}</string>
+    <key>CFBundleIdentifier</key>
+    <string>${CF_BUNDLE_IDENTIFIER}</string>
+    <key>CFBundleExecutable</key>
+    <string>${CF_BUNDLE_EXECUTABLE}</string>
+    <key>CFBundleVersion</key>
+    <string>${CF_BUNDLE_VERSION}</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${CF_BUNDLE_SHORT_VERSION}</string>
+    <key>CFBundleIconFile</key>
+    <string>${CF_BUNDLE_ICON_FILE}</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>${CF_BUNDLE_INFO_DICT_VERSION}</string>
+    <key>CFBundlePackageType</key>
+    <string>${CF_BUNDLE_PACKAGE_TYPE}</string>
+  </dict>
+</plist>
+EndOfText
   )
 
+  # Save the info.plist file
   echo -e "$INFO_PLIST" > Info.plist  || { echo "app_bundle_create_info_plist: Failed to save Info.plist to ${APP_NAME}/Contents"; exit; }
-
-#   echo '<?xml version="1.0" encoding="UTF-8"?>' > Info.plist
-#   echo '<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> Info.plist
-#   echo '<plist version="1.0">' >> Info.plist
-#   echo '  <dict>' >> Info.plist
-#   echo '  <key>CFBundleGetInfoString</key>' >> Info.plist
-#   echo '  <string>${CF_BUNDLE_INFO_STRING}</string>' >> Info.plist
-# # echo '  <string>XMJ Mahjong (c) 2000-now by Julian Bradfield</string>' >> Info.plist
-#   echo '  <key>CFBundleExecutable</key>' >> Info.plist
-#   echo '  <string>xmj-script</string>' >> Info.plist
-#   echo '  <key>CFBundleIdentifier</key>' >> Info.plist
-#   echo '  <string>com.xmj-mahjong.www</string>' >> Info.plist
-#   echo '  <key>CFBundleName</key>' >> Info.plist
-#   echo '  <string>XMJ Mahjong</string>' >> Info.plist
-#   echo '  <key>CFBundleIconFile</key>' >> Info.plist
-#   echo '  <string>xmj.icns</string>' >> Info.plist
-#   echo '  <key>CFBundleShortVersionString</key>' >> Info.plist
-#   echo '  <string>1.16</string>' >> Info.plist
-#   echo '  <key>CFBundleInfoDictionaryVersion</key>' >> Info.plist
-#   echo '  <string>6.0</string>' >> Info.plist
-#   echo '  <key>CFBundlePackageType</key>' >> Info.plist
-#   echo '  <string>APPL</string>' >> Info.plist
-# # echo '  <key>IFMajorVersion</key>' >> Info.plist
-# # echo '  <integer>1</integer>' >> Info.plist
-# # echo '  <key>IFMinorVersion</key>' >> Info.plist
-# # echo '  <integer>16</integer>' >> Info.plist
-#   echo '  </dict>' >> Info.plist
-#   echo '</plist>' >> Info.plist
- 
-  # # Adjust the version number
-  # if [ "$XMJ_VERSION" != "1.16" ]; then
-  #   sed -i "" "s/<string>1.16<\/string>/<string>$XMJ_VERSION<\/string>/" Info.plist
-  # fi
 
   cd ../..
 }
