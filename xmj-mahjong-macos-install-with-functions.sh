@@ -1,4 +1,4 @@
-#!/bin/env zsh
+#!/bin/bash
 
 # Script to install Julian Bradfield XMJ Mahjong to MacOS
 #
@@ -46,50 +46,73 @@ while getopts ":v:lcdh" opt; do
   esac
 done
 
-XMJ_SRC_FILENAME="mj-"$XMJ_VERSION"-src"
+# Source file name and remote location
+XMJ_SRC_FILENAME="mj-$XMJ_VERSION-src"
 XMJ_SRC_FILENAME_COMPRESSED=$XMJ_SRC_FILENAME".tar.gz"
 
 XMJ_SRC_WEBSITE="https://mahjong.julianbradfield.org/Source"
 XMJ_SRC_REMOTE_FILE="$XMJ_SRC_WEBSITE/$XMJ_SRC_FILENAME_COMPRESSED"
 
-TEMP_FOLDER="XMJ-MacOS-Prep"
-
+# Apple Application Bundle specifics
 APP_NAME="XMJ Mahjong.app"
-APP_EXECUTABLES="$APP_NAME/Contents/MacOS"
-APP_RESOURCES="$APP_NAME/Contents/Resources"
-APP_LIBS="$APP_NAME/Contents/Libs"
+APP_CONTENTS_FOLDER_NAME="Contents"
+APP_EXECUTABLES_FOLDER_NAME="MacOS"
+APP_RESOURCES_FOLDER_NAME="Resources"
+APP_LIBS_FOLDER_NAME="Libs"
+APP_INFO_PLIST_NAME="Info.plist"
+MINI_SCRIPT_NAME="xmj-script"
 
-PATCHES_FOLDER="patches"
+PATCHES_FOLDER_NAME="patches"
 
-CREATE_BACKUP=false
+
+CURRENT_FOLDER=$(pwd)
+TEMP_FOLDER_NAME="XMJ-MacOS-Prep"
+
+TEMP_FOLDER="$CURRENT_FOLDER/$TEMP_FOLDER_NAME"
+
+XMJ_UNCOMPRESS_FOLDER="$TEMP_FOLDER/$XMJ_SRC_FILENAME"
+
+APP_FOLDER="$TEMP_FOLDER/$APP_NAME"
+APP_CONTENTS_FOLDER="$APP_FOLDER/$APP_CONTENTS_FOLDER_NAME"
+APP_EXECUTABLES_FOLDER="$APP_CONTENTS_FOLDER/$APP_EXECUTABLES_FOLDER_NAME"
+APP_RESOURCES_FOLDER="$APP_CONTENTS_FOLDER/$APP_RESOURCES_FOLDER_NAME"
+APP_LIBS_FOLDER="$APP_CONTENTS_FOLDER/$APP_LIBS_FOLDER_NAME"
+APP_INFO_PLIST_LOCATION="$APP_CONTENTS_FOLDER/$APP_INFO_PLIST_NAME"
+
+MINI_SCRIPT_LOCATION="$APP_EXECUTABLES_FOLDER/$MINI_SCRIPT_NAME"
+
+PATCHES_FOLDER="$CURRENT_FOLDER/$PATCHES_FOLDER_NAME"
+
+
+# CREATE_BACKUP=false
+
+XCODE_INSTALLED=true
+BREW_INSTALLED=true
+GTK_INSTALLED=true
+GTK_NEEDS_UPDATE=false
+PKG_CONFIG_INSTALLED=true
+PKG_CONFIG_NEEDS_UPDATE=false
+DYLIBBUNDLER_INSTALLED=true
+DYLIBBUNDLER_NEEDS_UPDATING=false
+
+
 
 log() {
+  ####################################
+  ## Log helper function
+  ####################################
   if [ "$ENABLE_LOG" = true ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
   fi
 }
 
-check_dependencies() {
-  log "Checking dependencies"
-  command -v curl >/dev/null 2>&1 || { echo >&2 "curl is required but not installed. Aborting."; exit 1; }
-  command -v tar >/dev/null 2>&1 || { echo >&2 "tar is required but not installed. Aborting."; exit 1; }
-  command -v sed >/dev/null 2>&1 || { echo >&2 "sed is required but not installed. Aborting."; exit 1; }
-}
-
-check_existing_application_installation() {
-  if [ -d "/Applications/$APP_NAME" ]; then
-    if confirm "XMJ Mahjong is already installed. Reinstall?"; then
-      log "Removing existing installation"
-      rm -rf "/Applications/$APP_NAME"
-    else
-      log "Installation cancelled by user"
-      exit 0
-    fi
-  fi
-}
-
-# generic confirmation request function
 confirm() {
+  ####################################
+  ## User confirmation helper function
+  ##
+  ## Prompts the user for confirmation with a yes/no question
+  ## Returns true if the user confirms, false otherwise
+  ####################################
   read -r -p "$1 [y/N] " response
   case "$response" in
     [yY][eE][sS]|[yY]) 
@@ -101,31 +124,131 @@ confirm() {
   esac
 }
 
-# create_temp_folder(){
-#   #
-#   # Create a folder for the setup
-#   log "Create temp folder"
+check_dependencies() {
+  ####################################
+  ## Check dependencies
+  ## Checks if the required dependencies are installed
+  ## If not, informs the user to install them and exit
+  ####################################
+  echo ""
+  echo "================================================================="
+  echo " Checking dependencies"
+  echo "================================================================="
+  
+  log "Checking dependencies"
+  command -v curl >/dev/null 2>&1 || { echo >&2 "curl is required but not installed. Aborting."; exit 1; }
+  command -v tar >/dev/null 2>&1 || { echo >&2 "tar is required but not installed. Aborting."; exit 1; }
+  command -v sed >/dev/null 2>&1 || { echo >&2 "sed is required but not installed. Aborting."; exit 1; }
+  command -v patch >/dev/null 2>&1 || { echo >&2 "patch is required but not installed. Aborting."; exit 1; }
+  command -v make >/dev/null 2>&1 || { echo >&2 "make is required but not installed. Aborting."; exit 1; }
 
-#   # mkdir XMJ-MacOS-Install
-#   mkdir $TEMP_FOLDER
+  # Dependencies that the script will install
+  command -v xcode-select >/dev/null 2>&1 || { XCODE_INSTALLED=false; }
+  command -v brew >/dev/null 2>&1 || { BREW_INSTALLED=false; }
+  command -v brew list gtk+ >/dev/null 2>&1 || { GTK_INSTALLED=false; }
+  command -v brew outdated gtk+ >/dev/null 2>&1 || { GTK_NEEDS_UPDATE=true; }
+  command -v brew list pkg-config >/dev/null 2>&1 || { PKG_CONFIG_INSTALLED=false; }
+  command -v brew outdated pkg-config >/dev/null 2>&1 || { PKG_CONFIG_NEEDS_UPDATE=true; }
+  command -v brew list dylibbundler >/dev/null 2>&1 || { DYLIBBUNDLER_INSTALLED=false; }
+  command -v brew outdated dylibbundler >/dev/null 2>&1 || { DYLIBBUNDLER_NEEDS_UPDATING=true; }
 
-#   # Go to this folder
-#   # cd XMJ-MacOS-Install  || { echo "Failed to get to the XMJ-MacOS-Install/ folder"; exit; }
-#   cd $TEMP_FOLDER  || { echo "create_temp_folder: Failed to change directory to ${TEMP_FOLDER}"; exit; }
-# }
+
+  if [ "$ENABLE_LOG" = true ]; then
+    log "All dependencies are installed"
+  fi
+
+  echo " Dependencies check passed"
+  echo "================================================================="
+
+}
+
+handle_xmj_in_Applications_folder() {
+  ####################################
+  ## Check if XMJ Mahjong is found in the Applications folder
+  ##
+  ## If yes, ask the user if they want to replace it
+  ## If yes, removes the existing installation
+  ####################################
+  echo ""
+  echo "================================================================="
+  echo " Checking for existing XMJ Mahjong installation"
+  echo "================================================================="
+
+  log "Checking for existing XMJ Mahjong installation"
+
+  if [ -d "/Applications/$APP_NAME" ]; then
+    if confirm "XMJ Mahjong found in Applications folder. Replace it?"; then
+      log "Removing existing installation"
+      rm -rf "/Applications/$APP_NAME"
+      echo " XMJ Mahjong in Applications folder removed"
+    else
+      log "Installation cancelled by user"
+      exit 0
+    fi
+  fi
+
+  echo " No XMJ Mahjong found in Applications folder"
+  echo " or user chose to reinstall"
+  echo "================================================================="
+}
+
+create_temp_folder(){
+  ####################################
+  ## Create the App Bundle preparation folder
+  ##
+  ## This is where the source code will be downloaded and prepared
+  ## It will also contain the App Bundle tree
+  ## This folder will be removed at the end of the installation
+  ## unless the user chooses to keep it
+  ## This is also where the patches will be stored
+  ## This folder will be created in the current working directory
+  ## The folder will be named XMJ-MacOS-Prep
+  ####################################
+  echo ""
+  echo "================================================================="
+  echo " Creating temporary folder for XMJ Mahjong app bundle preparaton"
+  echo "================================================================="
+
+  log "Creating temp folder"
+
+  if [ -d "$TEMP_FOLDER" ]; then
+    log "Removing existing temporary folder $TEMP_FOLDER"
+    rm -rf "$TEMP_FOLDER"
+  fi
+  
+  # mkdir XMJ-MacOS-Install
+  mkdir "$TEMP_FOLDER" || { echo "create_temp_folder: Failed to create ${TEMP_FOLDER}"; exit; }
+  
+  # Go to this folder
+  # cd XMJ-MacOS-Install  || { echo "Failed to get to the XMJ-MacOS-Install/ folder"; exit; }
+  # cd $TEMP_FOLDER  || { echo "create_temp_folder: Failed to change directory to ${TEMP_FOLDER}"; exit; }
+
+  if [ -d "$TEMP_FOLDER" ]; then
+    log "Temporary folder $TEMP_FOLDER created"
+  else
+    log "Failed to create temporary folder $TEMP_FOLDER"
+    exit 1
+  fi
+
+  echo " Temporary folder $TEMP_FOLDER created"
+  echo "================================================================="
+}
 
 xmj_download_src() {
   ####################################
-  #
-  # Prepare and Download
-  #
+  ## Download the source code from the author's website
+  ##
+  ## for the specified version
   ####################################
-
+  echo ""
   echo "================================================================="
   echo " Downloading application source from author's website"
   echo "================================================================="
 
   log "Downloading application source from author's website"
+
+  # Change to the temporary folder
+  pushd "$TEMP_FOLDER" || { echo "xmj_download_src: Failed to change directory to ${TEMP_FOLDER}"; exit; }
 
   # Download XMJ Mahjong source code from its original website (from Julian Bradfield)
   # curl https://mahjong.julianbradfield.org/Source/mj-1.16-src.tar.gz -O mj-1.16-src.tar.gz
@@ -135,29 +258,61 @@ xmj_download_src() {
     log "Failed to download source file"
     exit 1
   fi
+
+  if [ ! -f "$XMJ_SRC_FILENAME_COMPRESSED" ]; then
+    log "Source file $XMJ_SRC_FILENAME_COMPRESSED not found after download"
+    exit 1
+  fi
+  log "Source file $XMJ_SRC_FILENAME_COMPRESSED downloaded successfully"
+
+  echo " Source code downloaded to $TEMP_FOLDER/$XMJ_SRC_FILENAME_COMPRESSED"
+  echo "================================================================="
+
+  # Change back to the original directory
+  popd
 }
 
 xmj_uncompress_src() {
-  # Unzip the downloaded file
-  # tar -zxvf ./mj-1.16-src.tar.gz
+  ####################################
+  ## Uncompress the downloaded application source code
+  ##
+  ## This creates the folder $XMJ_UNCOMMPRESS_FOLDER under $TEMP_FOLDER
+  ## and extracts the source in it using
+  ##   tar -zxvf ./mj-$XMJ_VERSION-src.tar.gz
+  ####################################
+  echo ""
+  echo "================================================================="
+  echo " Uncompressing source code"
+  echo "================================================================="
 
-  log "uncompressing source file"
+  log "Uncompressing source code"
+
+  # Change to the temporary folder
+  pushd "$TEMP_FOLDER" || { echo "xmj_uncompress_src: Failed to change directory to ${TEMP_FOLDER}"; exit; }
 
   tar -zxvf ./"$XMJ_SRC_FILENAME_COMPRESSED"
 
-  # NOTE: This creates the folder $XMJ_SRC_FILENAME and extracts the source in it
+  if [ -d "$XMJ_UNCOMPRESS_FOLDER" ]; then
+    log "Source code uncompressed to $XMJ_UNCOMPRESS_FOLDER"
+  else
+    log "folder $XMJ_UNCOMPRESS_FOLDER not found after uncompression, suspecting problem with decompression"]
+  fi
+
+  echo " Source code uncompressed to $XMJ_UNCOMPRESS_FOLDER"
+  echo "================================================================="
+
+  # Change back to the original folder
+  popd
+
 }
 
 xmj_check_files_to_be_patched() {
   ####################################
-  #
-  # Check if the files to be patched are identical to the ones used to create the patches.
-  # This is to ensure that the patches are not applied to an incorrect version of the source code.
-  #
+  ## Check if the files to be patched are identical to the ones used to create the patches.
+  ##
+  ## This is to ensure that the patches are not applied to an incorrect version of the source code.
+  ## Currently this only works for xmj 1.17
   ####################################
-  #
-  # Check that the source files are present and not empty
-  # If not, exit with an error message
   echo ""
   echo "================================================================="
   echo " Checking that the source files to be patched are present and"
@@ -166,50 +321,45 @@ xmj_check_files_to_be_patched() {
 
   log "Checking source files to be patched"
 
-  if [ ! -d "$XMJ_SRC_FILENAME" ]; then
-    echo "Source directory $XMJ_SRC_FILENAME does not exist. Please check the download."
+  if [ ! -f "$XMJ_UNCOMPRESS_FOLDER/gui.c" ]; then
+    echo "Source file gui.c does not exist in $XMJ_UNCOMPRESS_FOLDER. Please check the download."
     exit 1
   fi
 
-  if [ ! -f "$XMJ_SRC_FILENAME/gui.c" ]; then
-    echo "Source file gui.c does not exist in $XMJ_SRC_FILENAME. Please check the download."
+  if [ ! -f "$XMJ_UNCOMPRESS_FOLDER/controller.c" ]; then
+    echo "Source file controller.c does not exist in $XMJ_UNCOMPRESS_FOLDER. Please check the download."
     exit 1
   fi
 
-  if [ ! -f "$XMJ_SRC_FILENAME/controller.c" ]; then
-    echo "Source file controller.c does not exist in $XMJ_SRC_FILENAME. Please check the download."
+  if [ ! -f "$XMJ_UNCOMPRESS_FOLDER/greedy.c" ]; then
+    echo "Source file greedy.c does not exist in $XMJ_UNCOMPRESS_FOLDER. Please check the download."
     exit 1
   fi
 
-  if [ ! -f "$XMJ_SRC_FILENAME/greedy.c" ]; then
-    echo "Source file greedy.c does not exist in $XMJ_SRC_FILENAME. Please check the download."
+  if ! diff "$XMJ_UNCOMPRESS_FOLDER/gui.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/gui_xmj_$XMJ_VERSION.c"; then
+    echo "Source file $XMJ_UNCOMPRESS_FOLDER/gui.c is not identical to the file needed to be patched: $PATCHES_FOLDER/xmj_$XMJ_VERSION/gui_xmj_$XMJ_VERSION.c. Please check the download."
     exit 1
   fi
 
-  if ! diff "$XMJ_SRC_FILENAME/gui.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/gui_xmj_$XMJ_VERSION.c"; then
-    echo "Source file $XMJ_SRC_FILENAME/gui.c is not identical to the file needed to be patched: $PATCHES_FOLDER/xmj_$XMJ_VERSION/gui_xmj_$XMJ_VERSION.c. Please check the download."
+  if ! diff "$XMJ_UNCOMPRESS_FOLDER/controller.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/controller_xmj_$XMJ_VERSION.c"; then
+    echo "Source file $XMJ_UNCOMPRESS_FOLDER/controller.c is not identical to the file needed to be patched. Please check the download."
     exit 1
   fi
 
-  if ! diff "$XMJ_SRC_FILENAME/controller.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/controller_xmj_$XMJ_VERSION.c"; then
-    echo "Source file controller.c is not identical to the file needed to be patched. Please check the download."
+  if ! diff "$XMJ_UNCOMPRESS_FOLDER/greedy.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/greedy_xmj_$XMJ_VERSION.c"; then
+    echo "Source file $XMJ_UNCOMPRESS_FOLDER/greedy.c is not identical to the file needed to be patched. Please check the download."
     exit 1
   fi
 
-  if ! diff "$XMJ_SRC_FILENAME/greedy.c" -q "$PATCHES_FOLDER/xmj_$XMJ_VERSION/greedy_xmj_$XMJ_VERSION.c"; then
-    echo "Source file greedy.c is not identical to the file needed to be patched. Please check the download."
-    exit 1
-  fi
-
-  echo "All source files are identical to the files needed to be patched."
+  echo " All source files are identical to the files needed to be patched."
   echo "================================================================="
 }
 
 xmj_create_patches_for_version() {
   ####################################
-  #
-  # Create the patches
-  #
+  ## Create the patches for the version 
+  ##
+  ## Currently only version 1.17 (latest) has patches
   ####################################
   echo ""
   echo "================================================================="
@@ -218,123 +368,75 @@ xmj_create_patches_for_version() {
 
   log "Generating the patch files for version $XMJ_VERSION"
 
-  cd patches || { echo "xmj_create_patches: Failed to change directory to patches"; exit; }
+  pushd patches || { echo "xmj_create_patches: Failed to change directory to patches"; exit; }
+
   # Create the patches for the source files
+  sh create_patches_for_version.sh -v "$XMJ_VERSION" || { echo "xmj_create_patches: Failed to create patches for version $XMJ_VERSION"; exit; }
 
-  sh create_patches_for_version.sh -v $XMJ_VERSION || { echo "xmj_create_patches: Failed to create patches for version $XMJ_VERSION"; exit; }
-
-  echo "patches files for xmj_$XMJ_VERSION created"
+  echo " Patches files for xmj_$XMJ_VERSION created"
   echo "================================================================="
-  cd ..
+
+  popd
 }
 
 xmj_adjust_src_port_number() {
   ####################################
-  #
-  # Adjust source for Apple port issue
-  #
+  ## Adjust source for Apple port issue
+  ##
+  ## Apple has now bound some of its applications to the port 5000
+  ## which has also been used as the default socket port by XMJ Mahjong.
+  ##
+  ## This has always been the default for XMJ Mahjong, but Apple's use
+  ## makes it impossible for xmj to request it (and therefore run)
+  ##
+  ## This patch modifies the default port of XMJ Mahjong on MacOS to 4000.
+  ## This value can still be altered in the game
+  ## but setting it back to 5000 in MacOS will cause the game to not run
   ####################################
-  #
-  # Next, we need to modify the default port number:
-  # Apple has now fixed its use of port 5000 for some of its functionality
-  # This is the default for XMJ Mahjong, so this will become an annoying issue
-  # Hopefully this can be addressed later but this will cause confusion for the forseeable future
-  #
-  # For now, change the XMJ Mahjong default port to 4000 (for example):
   echo ""
   echo "================================================================="
   echo " Modify source code as needed for Apple"
   echo ""
-  echo "IMPORTANT NOTE: As Apple now uses port 5000 for its own functionality"
-  echo "this redefines it to port 4000. On non-Apple XMJ, this value will need"
-  echo "to be matched. 4000 can be changed as desired as long as it is not a"
-  echo "port number used by any of the machines"
+  echo " IMPORTANT NOTE: As Apple now uses port 5000 for its own functionality"
+  echo " this redefines it to port 4000. On non-Apple XMJ, this value will need"
+  echo " to be matched. 4000 can be changed in-gamme as desired as long as it is "
+  echo " not a port number used by any of the application"
   echo "================================================================="
 
   log "Adjusting port number in source"
 
   # Go to the extracted folder
-  # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
-  cd "$XMJ_SRC_FILENAME" || { echo "xmj_adjust_src_port_number: Failed to change directory to extracted ${XMJ_SRC_FILENAME}"; exit; }
+  # pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "xmj_adjust_src_port_number: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
 
-  patch -u gui.c -i ../patches/gui_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch gui.c"; exit; }
-  patch -u controller.c -i ../patches/controller_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch controller.c"; exit; }
-  patch -u greedy.c -i ../patches/greedy_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch greedy.c"; exit; }
+  patch -u "$XMJ_UNCOMPRESS_FOLDER"/gui.c -i "$PATCHES_FOLDER"/gui_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch gui.c"; exit; }
+  patch -u "$XMJ_UNCOMPRESS_FOLDER"/controller.c -i "$PATCHES_FOLDER"/controller_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch controller.c"; exit; }
+  patch -u "$XMJ_UNCOMPRESS_FOLDER"/greedy.c -i "$PATCHES_FOLDER"/greedy_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch greedy.c"; exit; }
 
-  # # - in gui.c:
-  # # change
-  # #     `char address[256] = "localhost:5000";`
-  # # to 
-  # #     `char address[256] = "localhost:4000";`
-  # if [ $CREATE_BACKUP = true ] ; then
-  #   cp gui.c gui.c.backup
-  # fi
-  # TEXT_TO_SEARCH_FOR='char address[256] = "localhost:5000";'
-  # TEXT_TO_REPLACE_WITH='char address[256] = "localhost:4000";'
-  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
-  # # sed -i "" 's/char address\[256\] = "localhost:5000"/char address\[256\] = "localhost:4000"/' gui.c
-
-  # # change
-  # #     `if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {`
-  # # to
-  # #     `if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {`
-  # TEXT_TO_SEARCH_FOR='if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {'
-  # TEXT_TO_REPLACE_WITH='if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {'
-  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" gui.c
-  # # sed -i "" 's/if ( strcmp(redirected ? origaddress : address,"localhost:5000") != 0 ) {/if ( strcmp(redirected ? origaddress : address,"localhost:4000") != 0 ) {/' gui.c
-
-  # # - in controller.c:
-  # # change
-  # #   `char *address = ":5000";`
-  # # to
-  # #   `char *address = ":4000";`
-  # if [ $CREATE_BACKUP = true ] ; then
-  #   cp controller.c controller.c.backup
-  # fi
-  # TEXT_TO_SEARCH_FOR='char *address = ":5000";'
-  # TEXT_TO_REPLACE_WITH='char *address = ":4000";'
-  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" controller.c
-  # # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' controller.c
-
-  # # - in greedy.c:
-  # # change
-  # #   `char *address = ":5000";`
-  # # to
-  # #   `char *address = ":4000";`
-  # if [ $CREATE_BACKUP = true ] ; then
-  #   cp greedy.c greedy.c.backup
-  # fi
-  # TEXT_TO_SEARCH_FOR='char *address = ":5000";'
-  # TEXT_TO_REPLACE_WITH='char *address = ":4000";'
-  # sed -i "" "s|$TEXT_TO_SEARCH_FOR|$TEXT_TO_REPLACE_WITH|" greedy.c
-
-  # # sed -i "" 's/char \*address = ":5000";/char \*address = ":4000";/' greedy.c
-
-  echo "Patches to adjust default network port number "
-  echo "from 5000 to 4000 applied"
+  echo " Patches to adjust default network port number from 5000 to 4000 applied"
   echo "================================================================="
 
-  cd ..
+  # Change back to the original folder
+  # popd
 }
 
 xmj_adjust_src_executables_path() {
   ####################################
-  #
-  # Ensure mj-player and mj-server can 
-  # be found in the Apple App Bundle
-  #
-  # TODO: find out if this can be omitted
-  #
+  ## Sets the game path to mj-player and mj-server to the 
+  ## relative same path as the main executable ('./')
+  ##
+  ## By default, XMJ loads the mj-player and mj-server executables by finding them
+  ## in the PATH variable.
+  ##
+  ## When using bundles, a PATH variable is not generally created, and
+  ## for security reason, Apple does not look in the same folder when 
+  ## the relative path './' is not set
+  ##
+  ## For the moment, the solution is to patch the source code to add the './' to the 
+  ## way the execution of the mj-player and mj-server are made
+  ##
+  ## TODO: A better way might be to wrap the mj-player an mj-server in their own bundles
+  ## and stores these bundle in the App bundle and change the Info.plist to find these bundles.
   ####################################
-  # 
-  # THIS CAN PROBABLY BE IMPROVED, BUT IT APPEARS BY DEFAULT IN AN APP BUNDLE
-  # mj-server WAS NOT DISCOVERED WHEN LAUNCHED mj-player. 
-  # THERE MIGHT BE A WAY OF/SETTING OF THE APP BUNDLE TO FIX THIS?
-  #
-  # mj-player and mj-server to be discovered in the same folder
-  # as the executable xmj when it is in the macOS app bundle. 
-  # (same folder for ease of use but adjust accordingly if placing somewhere else)
-  # So for the purpose of the macOS app bundle only:
   echo ""
   echo "================================================================="
   echo " Adjusting executable relative paths in source code"
@@ -349,146 +451,154 @@ xmj_adjust_src_executables_path() {
   log "Adjusting executable relative paths in source"
 
   # Go to the extracted folder
-  # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
-  cd "$XMJ_SRC_FILENAME" || { echo "xmj_adjust_src_executables_path: Failed to change directory to extracted ${XMJ_SRC_FILENAME}"; exit; }
+  # pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "xmj_adjust_src_executables_path: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
 
-  patch -u gui.c -i ../patches/gui_xmj_"$XMJ_VERSION"_executables_relative_path_fix.patch || { echo "xmj_adjust_src_executables_path: Failed to patch gui.c"; exit; }
+  patch -u "$XMJ_UNCOMPRESS_FOLDER"/gui.c -i "$PATCHES_FOLDER"/gui_xmj_"$XMJ_VERSION"_executables_relative_path_fix.patch || { echo "xmj_adjust_src_executables_path: Failed to patch gui.c"; exit; }
 
-
-  # # - in gui.c:
-  # # somewhere above the two changes below, as a global define for the file:
-  # #  `#define macOS`
-  # TEXT_TO_FIND='#include "gtkrc.h"'
-  # TEXT_TO_REPLACE_WITH='#include "gtkrc.h"\n#define MacOS'
-  # sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE|" gui.c
-  # # sed -i "" 's/#include "gtkrc.h"/#include "gtkrc.h"\n#define MacOS/' gui.c
-
-  # # - also in gui.c
-  # # change
-  # #     `strcpy(cmd, "mj-server --id-order-seats --server ");`
-  # # to
-  # # ```
-  # #   #ifndef macOS
-  # #       strcpy(cmd, "mj-server --id-order-seats --server ");
-  # #   #else
-  # #       strcpy(cmd, "./mj-server --id-order-seats --server ");
-  # #   #endif
-  # # ```
-  # TEXT_TO_FIND='strcpy(cmd, "mj-server --id-order-seats --server ");'
-  # TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\t\t\tstrcpy(cmd, "mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif'
-  # sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
-  # # sed -i "" 's/strcpy(cmd,"mj-server --id-order-seats --server ");/#ifndef MacOS\n\t\t\t\tstrcpy(cmd,"mj-server --id-order-seats --server ");\n\t\t\t#else\n\t\t\t\tstrcpy(cmd, "\.\/mj-server --id-order-seats --server ");\n\t\t\t#endif/' gui.c
-
-  # # also in gui.c:
-  # # change:
-  # # 	`strcpy(cmd,"mj-player --server ");`
-  # # to 
-  # # ```
-  # #     #ifndef macOS
-  # #         strcpy(cmd,"mj-player --server ");
-  # #     #else
-  # #         strcpy(cmd,"./mj-player --server ");
-  # #     #endif
-  # # ```
-  # TEXT_TO_FIND='strcpy(cmd,"mj-player --server ");'
-  # TEXT_TO_REPLACE_WITH='#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif'
-  # sed -i "" "s|$TEXT_TO_FIND|$TEXT_TO_REPLACE_WITH|" gui.c
-  # # sed -i "" 's/strcpy(cmd,"mj-player --server ");/#ifndef MacOS\n\t\tstrcpy(cmd,"mj-player --server ");\n\t#else\n\t\tstrcpy(cmd,"\.\/mj-player --server ");\n\t#endif/' gui.c
-
-  echo "patches to adjust executables relative paths done"
+  echo " Patches to adjust executables relative paths done"
   echo "================================================================="
 
-  cd ..
+  # Change back to the original folder
+  # popd
 }
 # This concludes the essential code changes - could be done in a smarter way, presumably.
 
 xmj_patch_tiles_display_bug_fix_for_xmj_1_17() {
-
   ####################################
-  #
-  # Bug fix for xmj-1.17
-  # The tiles are not displayed correctly in MacOS, as the default colour values
-  # used for the gdk_draw_pixbuf is not well referenced in the gtk+ version of MacOS. 
-  # To fix this, overriding the default value with a defined Graphics Context done
-  #
-  # gdk_draw_pixbuf is a new improvement in xmj-1.17, which is not present in xmj-1.16 and before
-  # which actually modernises the previous implementation and allows fixing of some issues
-  # observed in previous versions
-  #
+  ## Tiles display Bug fix patch for xmj-1.17
+  ##
+  ## In MacOS, The tiles are not displayed correctly in v1.17.
+  ## This is caused by the default colour values used for the gdk_draw_pixbuf
+  ## in the MacOS variant,these is not well referenced in the gtk+ port. 
+  ##
+  ## This can be fixed by not allowing the use of the default values,
+  ## by overriding the default value with a defined Graphics Context done
+  ##
+  ## gdk_draw_pixbuf is a new improvement in xmj-1.17, which is not present in xmj-1.16 and before
+  ## Its use modernises the implementation of XMJ and allows fixing of some issues
+  ## observed in previous versions
   ####################################
-  
   echo ""
   echo "================================================================="
   echo " Tiles Display Bug fix for xmj-1.17"
   echo "================================================================="
 
-  log "Bug fix for xmj-1.17"
+  log "Tiles display Bug fix for xmj-1.17"
 
   # Go to the extracted folder
-  cd "$XMJ_SRC_FILENAME" || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to change directory to extracted ${XMJ_SRC_FILENAME}"; exit; }
+  # pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
 
   # # Fix the bug in gui.c
-  # sed -i "" 's/gtk_widget_show_all(GTK_WIDGET(window));/gtk_widget_show_all(GTK_WIDGET(window));\n\t\tgtk_window_set_default_size(GTK_WINDOW(window),800,600);/' gui.c
-  patch -u gui.c -i ../patches/gui_xmj_"$XMJ_VERSION"_tiles_display_fix.patch || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to patch gui.c"; exit; }
+  patch -u "$XMJ_UNCOMPRESS_FOLDER"/gui.c -i "$PATCHES_FOLDER"/gui_xmj_"$XMJ_VERSION"_tiles_display_fix.patch || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to patch gui.c"; exit; }
 
-  cd ..
-
-  echo "Tiles Display Bug fix for xmj-1.17 applied"
+  echo " Tiles Display Bug fix for xmj-1.17 applied"
   echo "================================================================="
 
+  # popd
 }
 
 check_xcode_cli_tools() {
-  if ! xcode-select -p &> /dev/null; then
-    log "Xcode Command Line Tools are not installed. Please install them and try again."
+  ####################################
+  ## Check if Xcode Command Line Tools are installed
+  ##
+  ## If not, prompt the user to install them
+  ## 
+  ####################################
+  echo ""
+  echo "================================================================="
+  echo " Installing Xcode Command Line Tools (if not present)"
+  echo "================================================================="
+
+  log "Installing Xcode Command Line Tools (if not present)"
+
+  if [ "$XCODE_INSTALLED" = false ]; then
+    log "Xcode Command Line Tools are not installed. Installing them now..."
     xcode-select --install
-    exit 1
+  
+    echo " Xcode Command Line Tools are installed"
+    echo "================================================================="
+
+  else
+    log " Xcode Command Line Tools are already installed, skipping"
+    echo "================================================================="
+
   fi
 }
 
 install_compiling_essentials() {
   ####################################
-  #
-  # Install essential files for compiling
-  #
-  # TODO: DONE - Pre-check installed, in which case, skip
-  #
+  ## Install essential files for compiling
+  ##
+  ## Install Homebrew, a package manager (https://brew.sh/)
+  ## Then installs gtk+ and pkg-config which are needed to compile XMJ
   ####################################
-  #
-  # Install Homebrew, a package manager (installs stuff needed to run xmj)
-  # https://brew.sh/
+  echo ""
   echo "================================================================="
-  echo " Download Homebrew and required packages"
+  echo " Installing or updating Homebrew"
+  echo " Then installing the required packages to compile XMJ Mahjong"
   echo "================================================================="
 
   log "Installing compiling essentials"
 
-  if ! command -v brew &> /dev/null; then
-    log "Installing Homebrew..."
+  if [ "$BREW_INSTALLED" = false ]; then
+    log "Homebrew is not installed. Installing it now..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
   else
-    log "Homebrew is already installed. Updating..."
+    log "Homebrew is already installed. Updating it..."
     brew update
   fi
 
-  # /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+  echo " Homebrew installed or updated successfully"
 
-  # Install GTK+, a package needed for the making the graphical interface from homebrew
-  brew install gtk+
 
-  # Below comment is probably already obsolete:
-  # As per 23rd Apr 2024 there is a problem as XPM had been removed from gdk-pixbuf.
-  # This is in the process of being re-added but in the meantime here is a trick to enable it:
-  # https://github.com/Homebrew/homebrew-core/issues/169803#issuecomment-2071212659
-  # And the page with updates on the reinstallment:
-  #
+  # Install or update GTK+ using homebrew, if needed
+  if [ "$GTK_INSTALLED" = false ]; then
+    log "GTK+ is not installed. Installing it now..."
+    brew install gtk+
+  else 
+    if [ "$GTK_NEEDS_UPDATE" = true ]; then
+      log "GTK+ is installed but needs to be updated. Updating it now..."
+      brew upgrade gtk+
+    else
+      log "GTK+ is already installed and up to date."
+    fi
+  fi
 
-  # Install pkg-config from homebrew
-  brew install pkg-config
+  echo " GTK+ installed or updated successfully"
+
+
+  # Install pkg-config using homebrew, if needed
+  if [ "$PKG_CONFIG_INSTALLED" = false ]; then
+    log "pkg-config is not installed. Installing it now..."
+    brew install pkg-config
+  else 
+    if [ "$PKG_CONFIG_NEEDS_UPDATE" = true ]; then
+      log "pkg-config is installed but needs to be updated. Updating it now..."
+      brew upgrade pkg-config
+    else
+      log "pkg-config is already installed and up to date."
+    fi
+  fi
+
+  echo " pkg-config installed or updated successfully"
+  echo " -> Compiling essentials installed successfully"
+  echo "================================================================="
 }
 
 make_executables() {
-  # Make the executables
+  #####################################
+  ## Make the XMJ executables
+  ##
+  ## This will compile the source code and create the executables
+  ## The executables will be created in the extracted source folder
+  ## The executables are:
+  ##   - xmj
+  ##   - mj-player
+  ##   - mj-server
+  ## The compilation is done using the make command
+  ## and the Makefile provided by the XMJ author
+  #####################################
+  echo ""
   echo "================================================================="
   echo " Creating the executables"
   echo "================================================================="
@@ -496,110 +606,113 @@ make_executables() {
   log "Making the executable"
 
   # Go to the extracted folder
-  # cd mj-1.16-src || { echo "Failed to get to the extracted mj-1.16-src/ folder"; exit; }
-  cd "$XMJ_SRC_FILENAME" || { echo "make_executables: Failed to change directory to extracted ${XMJ_SRC_FILENAME}"; exit; }
+  pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "make_executables: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
 
-  make
 
-  cd ..
+  if ! make; then
+    log "make command failed. Please check the output for errors."
+    echo "Make failed, please check the output for errors."
+    exit 1
+  fi
 
-  echo "Executables created in ${XMJ_SRC_FILENAME}"
+  echo " Executables created in ${XMJ_UNCOMPRESS_FOLDER}"
   echo "================================================================="
+
+  # Change back to the original folder
+  popd
 }
 
 app_bundle_create_tree() {
   ####################################
-  #
-  # First step in making the Apple App Bundle 
-  # (the application that appears in Launchpad)
-  #
-  ####################################
-  #
-  # An App bundler is a folder tree containing the executable, some resources such as the iconset.
-  # In the case of XMJ, it needs to also contain the tilesets for the game, 
-  # and will contain the linked librairies.
-  #
-  # XMJ Mahjong.app/
-  #   - Info.plist
-  #   + Contents/
-  #       + MacOS/
-  #           - xmj
-  #           - mj-player
-  #           - mj
-  #           - mj-server
-  #           - xmj-script
-  #           + tiles_numbered/
-  #               - (*.xpm)
-  #           + tiles_small/
-  #               - (*.xpm)
-  #           + tiles_v1/
-  #               - (*.xpm)
-  #           + fallbacktiles/
-  #               - (*.xpm)
-  #       + Resources/
-  #           - xmj.icns
-  #       + Libs/
-  #           - (libs)
-  #
-  # + folder
-  # - file
-  # - (bunch of files)
-  #
-  # First create the folder tree
-
+  ## Create the App Bundle tree
+  ##
+  ## A MacOS app is stored under a tree (the roof of which is the name of the app)
+  ## This enables the application to appears Launchpad when saved under /Applications
+  ##
+  ## An App bundler is a folder tree containing the executable
+  ##    (in MacoOS folder)
+  ## some resources such as the iconset.
+  ##    (in Resources folder)
+  ## In the case of XMJ, it needs to also contain the tilesets for the game 
+  ##    (in MacOS folder - as need to be relative to the executable)
+  ## and for portability, it should contain the linked librairies
+  ##    (in Libs folder)
+  ##
+  ## XMJ Mahjong.app/
+  ##    + Contents/
+  ##      - Info.plist
+  ##      + MacOS/
+  ##        - xmj
+  ##        - mj-player
+  ##        - mj-server
+  ##        - xmj-script
+  ##        + tiles_numbered/
+  ##          - (*.xpm)
+  ##        + tiles_small/
+  ##          - (*.xpm)
+  ##        + tiles_v1/
+  ##          - (*.xpm)
+  ##        + fallbacktiles/
+  ##          - (*.xpm)
+  ##      + Resources/
+  ##        - xmj.icns
+  ##      + Libs/
+  ##        - (libs)
+  ##
+  ## Legend:
+  ## +: folder
+  ## -: file
+  ## -: (bunch of files)
+  ########################################
+  echo ""
   echo "================================================================="
   echo " Creating folders tree that is the App Bundle"
   echo "================================================================="
 
-  log "Creating App Bundle tree"
+  log "Creating App Bundle folder tree"
 
-  if [ -d "$APP_NAME" ]; then
-    log "Removing existing App Bundle folder $APP_NAME"
-    rm -rf "$APP_NAME"
+  # pushd "$TEMP_FOLDER" || { echo "app_bundle_create_tree: Failed to change directory to ${TEMP_FOLDER}"; exit; }
+
+  if [ -d "$APP_FOLDER" ]; then
+    log "Removing existing App Bundle folder ${APP_FOLDER}"
+    rm -rf "$APP_FOLDER"
   fi
 
-  mkdir "$APP_NAME"
-  cd "$APP_NAME" || { echo "app_bundle_create_tree: Failed to change directory to ${APP_NAME}"; exit; }
+  mkdir "$APP_FOLDER" || { echo "app_bundle_create_tree: Failed to create folder${APP_FOLDER}"; exit; }
+  mkdir "$APP_CONTENTS_FOLDER" || { echo "app_bundle_create_tree: Failed to create folder ${APP_CONTENTS_FOLDER}"; exit; }
+  mkdir "$APP_EXECUTABLES_FOLDER" || { echo "app_bundle_create_tree: Failed to create folder ${APP_EXECUTABLES_FOLDER}"; exit; }
+  mkdir "$APP_RESOURCES_FOLDER" || { echo "app_bundle_create_tree: Failed to create folder ${APP_RESOURCES_FOLDER}"; exit; }
+  mkdir "$APP_LIBS_FOLDER" || { echo "app_bundle_create_tree: Failed to create folder ${APP_LIBS_FOLDER}"; exit; }
 
-  mkdir Contents
-  cd Contents  || { echo "app_bundle_create_tree: Failed to change directory to ${APP_NAME}/Contents/"; exit; }
-
-  mkdir MacOS
-  mkdir Resources
-  mkdir Libs
-
-  cd ../..
-
-  echo "App Bundle tree created in ${APP_NAME}"
+  echo " App Bundle folder tree created in ${APP_FOLDER}"
   echo "================================================================="
+
+  # Change back to the original folder
+  # popd || { echo "app_bundle_create_tree: Failed to change back to the original folder"; exit; }
 }
 
 app_bundle_create_info_plist() {
   ####################################
-  #
-  # Create the Info.plist file
-  #
+  ## Create the Info.plist file
+  ##
+  ## The Info.plist file  instructs which file to execute and where some resources are stored
+  ##
+  ##
+  ## For initial understanding, specific credit though to: Hayden Schiff under:
+  ## https://stackoverflow.com/questions/1596945/building-osx-app-bundle
+  ##
+  ## Also Apple Developer documentation: (this archive seems easier to navigate than the new doc)
+  ## https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-SW1
   ####################################
-  #
-  # This file that instructs which file to execute and where some resources are stored
-  # Its content is simple for the file organisation that this will use.
-  # Description if these info.plis files is quite available.
-  # Some improvements are probably possible
-  #   eg: IFMajor and IFMinor version seem to be deprecated now
-  #
-  # Specific credit though to: Hayden Schiff under:
-  # https://stackoverflow.com/questions/1596945/building-osx-app-bundle
-
+  echo ""
   echo "================================================================="
   echo " Create Info.plist in Contents folder"
   echo "================================================================="
 
   log "Creating App Bundle plist"
 
-  cd "$APP_NAME/Contents" || { echo "app_bundle_create_info_plist: Failed to change directory to ${APP_NAME}"; exit; }
+  # cd "$APP_NAME/Contents" || { echo "app_bundle_create_info_plist: Failed to change directory to ${APP_NAME}"; exit; }
 
-  # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/
-  # Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-SW1
 
   # set the variables of interest
   CF_BUNDLE_DISPLAY_NAME="XMJ Mahjong"
@@ -618,7 +731,7 @@ app_bundle_create_info_plist() {
 
 
   # Build up the info.plist variables
-  INFO_PLIST=$(cat <<EndOfText
+  INFO_PLIST_CONTENT=$(cat << EndOfText
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -653,155 +766,199 @@ EndOfText
   )
 
   # Save the info.plist file
-  printf "$INFO_PLIST" > Info.plist  || { echo "app_bundle_create_info_plist: Failed to save Info.plist to ${APP_NAME}/Contents"; exit; }
+  printf '%s' "$INFO_PLIST_CONTENT" > "$APP_INFO_PLIST_LOCATION"  || { echo "app_bundle_create_info_plist: Failed to save ${INFO_PLIST_LOCATION}"; exit; }
+  # printf '%s' "$INFO_PLIST" > Info.plist  || { echo "app_bundle_create_info_plist: Failed to save Info.plist to ${APP_NAME}/Contents"; exit; }
 
-  cd ../..
+  # cd ../..
 
-  echo "Info.plist created in ${APP_NAME}/Contents"
+  # echo "Info.plist created in ${APP_NAME}/Contents"
+  echo " Info.plist created in ${APP_INFO_PLIST_LOCATION}"
   echo "================================================================="
 }
 
 app_bundle_create_launch_miniscript() {
   ####################################
-  #
-  # Create the miniscript to launch the app
-  # probably unnecessary
-  #
+  ## Create the miniscript to launch the app
+  ##
+  ## This script's purpose is to make the local folder of the executable 
+  ## the current working folder. This is because by default when launching
+  ## an app from a bundle, the current working folder is the folder where the app is, like /Applications
+  ##
+  ## this script is stored in the MacOS folder of the App Bundle
+  ##
+  ## maybe unnecessary ?
   ####################################
-  #
-  # Mini script (seemed not needed in this case)
-  # This was a recommendation from Hayden in the link above
-  # script stored under Contents folder
-  # Script is called as pointed by Info.plist
+  echo ""
   echo "================================================================="
   echo " Create miniscript in Contents/MacOS folder"
   echo "================================================================="
 
   log "Creating App Bundle launch miniscript"
 
-  cd "$APP_NAME/Contents/MacOS" || { echo "app_bundle_create_launch_miniscript: Failed to change directory to ${APP_NAME}/Contents/MacOS"; exit; }
+  # pushd "$APP_EXECUTABLES_FOLDER" || { echo "app_bundle_create_launch_miniscript: Failed to change directory to ${APP_EXECUTABLES_FOLDER}"; exit; }
 
-  echo "#!/bin/bash"       > xmj-script
-  echo "cd \"\${0%/*}\""  >> xmj-script
-  echo "./xmj"            >> xmj-script
+  MINI_SCRIPT_CONTENT=$(cat << EndOfText
+#!/bin/bash
+cd "\${0%/*}"
+./xmj      
+EndOfText
+)
+
+  printf '%s' "$MINI_SCRIPT_CONTENT" > "$MINI_SCRIPT_LOCATION" || { echo "app_bundle_create_launch_miniscript: Failed to save ${MINI_SCRIPT_LOCATION}"; exit; }
+
+
+  # # Create the script that will be used to launch the app
+  # echo "#!/bin/bash"       > xmj-script
+  # echo "cd \"\${0%/*}\""  >> xmj-script
+  # echo "./xmj"            >> xmj-script
 
   # make this script executable
-  chmod +x xmj-script
+  # chmod +x xmj-script
+  chmod +x "$MINI_SCRIPT_LOCATION"
 
-  cd ../../..
-
-  echo "xmj-script created in ${APP_NAME}/Contents/MacOS"
+  echo " xmj-script created in ${MINI_SCRIPT_LOCATION}"
   echo "================================================================="
+
+  # popd || { echo "app_bundle_create_launch_miniscript: Failed to change back to the original folder"; exit; }
 }
 
 app_bundle_copy_executables() {
   ####################################
-  #
-  # Copy the executables and the tiles
-  # to the Contents/MacOS folder
-  #
+  ## Copy the executables and the tiles
+  ## to the Contents/MacOS folder
   ####################################
-  #
+  echo ""
   echo "================================================================="
   echo " Copy the executables and tileset into the Contents/Macos folder"
   echo "================================================================="
 
   log "copying executables in App Bundle "
 
+  cp "$XMJ_UNCOMPRESS_FOLDER"/xmj       "$APP_EXECUTABLES_FOLDER"/
+  cp "$XMJ_UNCOMPRESS_FOLDER"/mj-player "$APP_EXECUTABLES_FOLDER"/
+  cp "$XMJ_UNCOMPRESS_FOLDER"/mj-server "$APP_EXECUTABLES_FOLDER"/
+
+  cp -R "$XMJ_UNCOMPRESS_FOLDER"/tiles-numbered "$APP_EXECUTABLES_FOLDER"/
+  cp -R "$XMJ_UNCOMPRESS_FOLDER"/tiles-small    "$APP_EXECUTABLES_FOLDER"/
+  cp -R "$XMJ_UNCOMPRESS_FOLDER"/tiles-v1       "$APP_EXECUTABLES_FOLDER"/
+  cp -R "$XMJ_UNCOMPRESS_FOLDER"/fallbacktiles  "$APP_EXECUTABLES_FOLDER"/
+
   # cd MacOS   || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/MacOS' folder"; exit; }
 
   # cp ../../../xmj  .
   # cp ../../../mj-player .
   # cp ../../../mj-server .
-  cp "$XMJ_SRC_FILENAME"/xmj       "$APP_EXECUTABLES"/
-  cp "$XMJ_SRC_FILENAME"/mj-player "$APP_EXECUTABLES"/
-  cp "$XMJ_SRC_FILENAME"/mj-server "$APP_EXECUTABLES"/
+  # cp "$XMJ_SRC_FILENAME"/xmj       "$APP_EXECUTABLES"/
+  # cp "$XMJ_SRC_FILENAME"/mj-player "$APP_EXECUTABLES"/
+  # cp "$XMJ_SRC_FILENAME"/mj-server "$APP_EXECUTABLES"/
 
   # cp -R ../../../tiles-numbered .
   # cp -R ../../../tiles-small .
   # cp -R ../../../tiles-v1 .
   # cp -R ../../../fallbacktiles .
-  cp -R "$XMJ_SRC_FILENAME"/tiles-numbered "$APP_EXECUTABLES"/
-  cp -R "$XMJ_SRC_FILENAME"/tiles-small    "$APP_EXECUTABLES"/
-  cp -R "$XMJ_SRC_FILENAME"/tiles-v1       "$APP_EXECUTABLES"/
-  cp -R "$XMJ_SRC_FILENAME"/fallbacktiles  "$APP_EXECUTABLES"/
+  # cp -R "$XMJ_SRC_FILENAME"/tiles-numbered "$APP_EXECUTABLES"/
+  # cp -R "$XMJ_SRC_FILENAME"/tiles-small    "$APP_EXECUTABLES"/
+  # cp -R "$XMJ_SRC_FILENAME"/tiles-v1       "$APP_EXECUTABLES"/
+  # cp -R "$XMJ_SRC_FILENAME"/fallbacktiles  "$APP_EXECUTABLES"/
+
+  echo " Executables and tiles copied to ${APP_EXECUTABLES_FOLDER}"
+  echo "================================================================="
 
   # cd ..
 }
 
 app_bundle_prepare_and_install_iconset() {
   ####################################
-  #
-  # Prepare the iconset for Apple
-  #
-  ####################################
-  #
-  # macOS app bundle needs a specific file (.icns) containing multiple icon resolutions. 
-  # Thankfully it is easy to create:
-  # make the xmj.icns from the xmj.ico provided with the source:
-
-  # a) method 1, manual:
-  # i) create a folder called xmj.iconset
-  # ii) in it, create multiple png files with the following resolution an names(some repeat with different names): 
-
-  # (Ideally start from a 1024x1024 base image - but here we don't have it).
-  # using a tool such as GIMP http://gimp.org create the following images resized from the original - all square:
-  # icon_1024x1024x.png 1024 x 1024
-  # icon_512x512@2x.png 1024 x 1024
-  # icon_512x512.png  512 x 512
-  # icon_256x256@2x.png 512 x 512
-  # icon_256x256.png  256 x 256
-  # icon_128x128@2x.png 256 x 256
-  # icon_128x128.png  128 x 128
-  # icon_32x32@2x.png  64 x 64
-  # icon_32x32.png   32 x 32
-  # icon_16x16@2x.png  32 x 32
-  # icon_16x16.png   16 x 16
-  # 
-  # iii) in a terminal, run the following apple command on the folder:
-  #     `iconutil -c icns myicon.iconset`
-  # 
-  # b) method 2
-  # Alternatively there are some very capable apps like "App Icon Producer", free on the App Store.
-  # 
-  # in the end, you will end up with an iconset `xmj.icns`
+  ## Prepare the iconset for Apple
+  ##
+  ## To display an icon, macOS app bundle needs a specific file (.icns) 
+  ## This file contains multiple icon resolutions. 
+  ##
+  ## Thankfully it is easy to create:
+  ## make the xmj.icns from the xmj.ico provided with the source:
+  ##
+  ## A/ Manual method:
+  ##
+  ##   1. Create a folder called xmj.iconset (eg on desktop)
+  ##
+  ##   2. Create PNG files for the icons in the folder created in 1.
+  ##      Ideally start with a 1024x1024 png file and scale down - Here this resolution was not available.
+  ##      Gimp (http://gimp.org) was used here)
+  ##      All PNG must be square
+  ##      PNG names should follow the naming convention below (notice one filename has the @2x suffix)
+  ##      Generate all the following resolutions:    
+  ##
+  ##    1024 x 1024   icon_1024x1024x.png
+  ##    1024 x 1024   icon_512x512@2x.png 
+  ##     512 x  512   icon_512x512.png  
+  ##     512 x  512   icon_256x256@2x.png 
+  ##     256 x  256   icon_256x256.png  
+  ##     256 x  256   icon_128x128@2x.png 
+  ##     128 x  128   icon_128x128.png  
+  ##      64 x   64   icon_64x64@2x.png  
+  ##      64 x   64   icon_32x32@2x.png  
+  ##      32 x   32   icon_32x32.png   
+  ##      32 x   32   icon_16x16@2x.png  
+  ##      16 x   16   icon_16x16.png   
+  ## 
+  ##   3. in a terminal, run the following apple command on the folder:
+  ##     `iconutil -c icns myicon.iconset`
+  ## 
+  ## B/ Using existing tool
+  ##   There are some very capable apps, like "App Icon Producer", free on the App Store.
+  ## 
+  ## C/ Download the iconset from Squizzy's github
+  ##   This script will do this if the variable DOWNLOAD_ICONSET is set to true
+  ##   This should not be the preferred method as less trustable than if you do it yourself
+  ##
+  ## in the end, you will end up with an iconset `xmj.icns`
+  #####################################
+  echo ""
+  echo "================================================================="
+  echo " Generating the xmj iconset for MacOS"
+  echo
+  echo " In order to trust your application, you should create the iconset yourself"
+  echo " Instructions are probided in this script file to do this."
+  echo ""
+  echo " Alternatively, the file can be downloaded from Squizzy's github (where this script is located)"
+  echo ""
+  echo " However, by default you should not trust this file and create your own"
+  echo " based on the XMJ original icon file: 'icon.ico'"
+  echo " This script value 'DOWNLOAD_ICONSET' at the top of the file directs the script "
+  echo " to download the icon from Squizzy's github  by default"
+  echo ""
+  echo " Download can be disabled by changing 'DOWNLOAD_ICONSET=true' to 'DOWNLOAD_ICONSET=false'" 
+  echo "================================================================="
 
   log "Installing iconset in App Bundle "
 
-  echo "================================================================="
-  echo "Generating the xmj iconset for MacOS"
-  echo
-  echo "In order to trust your application, you should create the iconset yourself"
-  echo "following the instructions in this script file of the Squizzy github, or other."
-  echo "Alternatively, the file can be downloaded from the github this script was gotten from"
-  echo "By default you should not trust this file and create your own"
-  echo "based on the XMJ original icon file: 'icon.ico'"
-  echo "This script will download it by default, but you can disable this by"
-  echo "adding a # in from of the 'curl' line below" 
-  echo
-  echo "================================================================="
-
   if [ "$DOWNLOAD_ICONSET" = true ]; then
     # Download the iconset from Squizzy's github straight into the Resources folder 
+    echo ""
     echo "================================================================="
     echo " Downloading iconset"
     echo "================================================================="
-    curl -L -O https://github.com/Squizzy/XMJ-Mahjong-MacOS-Script/raw/development/icns/xmj.icns
+    curl -L -O https://github.com/Squizzy/XMJ-Mahjong-MacOS-Script/raw/development/icns/xmj.icns || { echo "app_bundle_prepare_and_install_iconset: Failed to download iconset"; exit; }
 
-    cp ./xmj.icns "$APP_RESOURCES"/
+    mv ./xmj.icns "$APP_RESOURCES_FOLDER"/
 
+    echo " Iconset downloaded and moved to ${APP_RESOURCES_FOLDER}"
 
   else
+    echo ""
     echo "================================================================="
     echo " iconset provided by you"
     echo "================================================================="
-    echo "Remember to copy your iconset to the App Bundle."
-    echo "As this script does not stop, you might want to change the one in the Applications folder directly"
-    echo "placed at location: ${APP_RESOURCES}"
-    echo
+    echo " Remember to copy your iconset to the App Bundle."
+    echo " As this script does not stop, you might want to change the one in the Applications folder directly"
+    echo " placed at location: ${APP_RESOURCES_FOLDER}"
+    echo " File must be named 'xmj.icns' (or modify the Info.plist file to match your icon name)"
+    echo ""
+    echo " Enter [Y] to continue"
+    confirm
   fi
   
-  
+  echo "================================================================="
   # cd Resources  || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/Resources/' folder"; exit; }
   # cd ..
 
@@ -809,15 +966,18 @@ app_bundle_prepare_and_install_iconset() {
 }
 
 app_bundle_install_to_Applications() {
-  # Copy the app bundle to the applications folder / launchpad
+  #####################################
+  ## Copy the app bundle to the applications folder / launchpad
+  #####################################
+  echo ""
   echo "================================================================="
   echo " Copying the app bundle to the Applications folder"
-  echo " This should set it automatically visible in the Launchpad"
+  echo " This should set it to be automatically visible in the Launchpad"
   echo "================================================================="
 
-  log "copying App Bundle to /Applications"
+  log "Copying App Bundle to /Applications"
 
-  cp -R "$APP_NAME" /Applications || { echo "app_bundle_install_to_Applications: Failed to copy ${APP_NAME} to /Applications"; exit; }
+  cp -R "$APP_FOLDER" /Applications || { echo "app_bundle_install_to_Applications: Failed to copy ${APP_FOLDER} to /Applications"; exit; }
 
   echo "App Bundle copied to /Applications"
   echo "================================================================="
@@ -827,58 +987,80 @@ app_bundle_install_to_Applications() {
 # With this script, it is not necessary unless the app is prepared to be redistributed.
 install_dylibbundler() {
   ####################################
-  #
-  # Install dylibbundler
-  #
+  ## Install dylibbundler
+  ##
+  ## The make command creates the executables and uses linked libraries, such as gtk+.
+  ## These libraries are not statically linked into the executables, so by default the bundle is not portable.
+  ## Whilst this script will download the required libraries, therefore make the application executable 
+  ## on the machine where it is compiled, simply copying the app bundle to another machine will not work.
+  ##
+  ## To fix this:
+  ##   - the required libraries need to be copied into the App bundle
+  ##   - then the executable files must be instructed where to look for them in the bundle.
+  ##
+  ## The above can be performed using applications such as `dylibbundler`:
+  ##    https://github.com/auriamg/macdylibbundler
+  ## However this application has not been updated in a while and 
+  ## does not seem to work well any more (with MacOS 15 at least).
+  ##
+  ## The app can make sure the App Bundle includes all libraries it depends on, 
+  ## so the app can be placed in the "Applications" folder.
+  ##
+  ## The app `dylibbundler` will:
+  ## - find all the libraries used for the compilation of the executables, 
+  ## - copy them into the bundle (here, creating a new folder `libs` under `XMJ Mahjong.app/Contents/`), 
+  ## - points the executables to these versions:
   ####################################
-
-  # In order to run, the executable files need librairies (files) that are not generically available on MacOS.
-  # The application has used linked librairies (eg gkt+). This makes it not very portable. 
-  # In order to fix this, it is possible to copy the required files into the App bundle
-  # And then tell the executable files where to look for them in the bundle.
-  # Thankfully that last part is available through applications such as:
-  # https://github.com/auriamg/macdylibbundler
-  #
-  # The app can make sure the App Bundle includes all libraries it depends on to place in the "Applications" folder, so it can be shared with someone who hasn't installed all the brewed files.
-
-  # The app `dylibbundler` will:
-  # - find all the libraries used for the compilation of the executables, 
-  # - copy them into the bundle (here, creating a new folder `libs` under `XMJ Mahjong.app/Contents/`), 
-  # - points the executables to these versions:
-
   echo ""
   echo "========================================================"
-  echo " Installing dylibbundler"
+  echo " Installing dylibbundler from https://github.com/auriamg/macdylibbundler"
   echo " This will identify and load the libraries used by the "
   echo " executables xmj, mj-player and mj-server"
   echo " into the App Bundle, so it can be shared with others"
+  echo ""
+  echo " Note that this app is not maintained actively and does not seem to work well with MacOS 15"
   echo "========================================================"
 
   log "installing dylibbundler"
 
-  # # Install the app using homebrew
-  brew install dylibbundler
+  # Install or upgrade dylibbundler using homebrew if needed
+  if [ "$DYLIBBUNDLER_INSTALLED" = false ]; then
+    log "dylibbundler is not installed. Installing it now..."
+    brew install dylibbundler
+    echo " dylibbundler installed successfully"
+  else
+    if [ "$DYLIBBUNDLER_NEEDS_UPDATING" = true ]; then
+      log "dylibbundler is already installed. Updating it..."
+      brew upgrade dylibbundler
+      echo " dylibbundler updated successfully"
+    else
+      log "dylibbundler is already installed and up to date."
+      echo " dylibbundler already installed and up to date"
+    fi
+  fi
 
-  echo "dylibbundler installed successfully"
+  # brew install dylibbundler
+
+  # echo "dylibbundler installed successfully"
   echo "========================================================"
 
 }
 
 execute_dylibbundler() {
   ####################################
-  #
-  # bundle the dylibs
-  # flags used (probaby some redundance built in!):
-  #  -b:          prepares the dylibs for the distribution
-  #  -d <folder>: specify destination folder for the dylibs
-  #  -p <folder>: destination folder to install to 
-  #  -x <file>:   executable file to process
-  #  -cd:         create destination folder if it does not exist
-  #  -ns:         disable ad-hoc code signing
-  #  -of:         overwrite files if exist
-  #
-  # https://github.com/auriamg/macdylibbundler
-  #
+  ## bundle the dylibs and patch the executable files appropriately
+  ##
+  ## flags used (probaby some redundance built in!):
+  ##  -x <file>:   executable file to process
+  ##  -b:          prepares the dylibs for the distribution
+  ##  -d <folder>: folder where the dylibs are stored
+  ##  -p <folder>: path from the executables folder to the folder where the dylibs are stored 
+  ##  -cd:         create destination folder if it does not exist
+  ##  -ns:         disable ad-hoc code signing
+  ##  -of:         overwrite files if exist
+  ##
+  ## https://github.com/auriamg/macdylibbundler
+  ##
   ####################################
 
   # run the app against each executable.
@@ -897,21 +1079,31 @@ execute_dylibbundler() {
   echo ""
   echo "========================================================"
   echo " Running dylibbundler"
+  echo ""
   echo " This will copy the libraries used by the executables"
-  echo " into the App Bundle, so it can be shared with others"
+  echo " into the App Bundle, so the app bundle can be shared with others"
   echo "========================================================"
 
   log "Executing dylibbundler "
 
   # cd /Applications ||  { echo "execute_dylibbundler: Failed to change directory to /Applications"; exit; }
 
-  /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/xmj -d "./$APP_LIBS" -cd -ns -of
-  
-  /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/mj-player -d "./$APP_LIBS" -cd -ns -of
-  
-  /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/mj-server -d "./$APP_LIBS" -cd -ns -of
+  # pushd "$APP_FOLDER" || { echo "execute_dylibbundler: Failed to change directory to ${APP_FOLDER}"; exit; }
 
-  echo "dylibbundler executed successfully"
+  dylibbundler -b -d "$APP_LIBS_FOLDER" -p "@executable_path/../$APP_LIBS_FOLDER_NAME" -cd -ns -of -x "$APP_EXECUTABLES_FOLDER/xmj" 
+  
+  dylibbundler -b -d "$APP_LIBS_FOLDER" -p "@executable_path/../$APP_LIBS_FOLDER_NAME" -cd -ns -of -x "$APP_EXECUTABLES_FOLDER/mj-player"
+  
+  dylibbundler -b -d "$APP_LIBS_FOLDER" -p "@executable_path/../$APP_LIBS_FOLDER_NAME" -cd -ns -of -x "$APP_EXECUTABLES_FOLDER/mj-server"
+
+
+  # /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/xmj -d "./$APP_LIBS" -cd -ns -of
+  
+  # /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/mj-player -d "./$APP_LIBS" -cd -ns -of
+  
+  # /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/mj-server -d "./$APP_LIBS" -cd -ns -of
+
+  echo " dylibbundler executed successfully"
   echo "========================================================"
 }
 
@@ -933,8 +1125,8 @@ this_script_cleanup() {
 
 main() {
   check_dependencies
-  check_existing_application_installation
-  check_xcode_cli_tools
+  handle_xmj_in_Applications_folder
+  create_temp_folder
   xmj_download_src
   xmj_uncompress_src
   xmj_check_files_to_be_patched
@@ -942,6 +1134,7 @@ main() {
   xmj_adjust_src_port_number
   xmj_adjust_src_executables_path
   xmj_patch_tiles_display_bug_fix_for_xmj_1_17
+  check_xcode_cli_tools
   install_compiling_essentials
   make_executables
   app_bundle_create_tree
