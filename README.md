@@ -1,7 +1,14 @@
 # XMJ Mahjong on MacOS
 
-A script to install Julian Bradfield's XMJ Mahjong on MacOS
+A script to install Julian Bradfield's XMJ Mahjong on MacOS, fixing some MacOS issues
 * https://mahjong.julianbradfield.org/
+
+Short instructions:
+* Download the file 'xmj-mahjong-macos-install-with-function.sh'
+* run, from a terminal: 'sh ./xmj-mahjong-macos-install-with-function.sh'
+
+If all goes well, XMJ Mahjong app should be in /Applications folder, and also be found in Launchpad.
+
 
 
 ## What is this?
