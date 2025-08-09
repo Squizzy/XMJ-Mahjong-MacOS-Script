@@ -6,6 +6,7 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
+# 2025-08-09 - Version 0.8 - now adds the non-standard dylib to the bundle to be portable. Several bug fixes. 
 # 2025-08-04 - Version 0.7 - Added xmj-1.17 support, switched from manual editing patches to proper patching
 # 2025-08-04 - Version 0.6 - Some refactoring for clarity
 # 2024-09-06 - Version 0.5 - tested xmj-1.16 (-with-functions version) as working on Sonoma/Intel
@@ -62,6 +63,10 @@ APP_LIBS_FOLDER_NAME="Libs"
 APP_INFO_PLIST_NAME="Info.plist"
 MINI_SCRIPT_NAME="xmj-script"
 
+# The file that should be executed to launch the game
+APP_EXECUTABLE="$MINI_SCRIPT_NAME"
+
+# Where the patches are stored
 PATCHES_FOLDER_NAME="patches"
 
 
@@ -157,7 +162,7 @@ check_dependencies() {
     log "All dependencies are installed"
   fi
 
-  echo " Dependencies check passed"
+  echo " Dependencies check complete"
   echo "================================================================="
 
 }
@@ -216,19 +221,14 @@ create_temp_folder(){
     rm -rf "$TEMP_FOLDER"
   fi
   
-  # mkdir XMJ-MacOS-Install
   mkdir "$TEMP_FOLDER" || { echo "create_temp_folder: Failed to create ${TEMP_FOLDER}"; exit; }
   
-  # Go to this folder
-  # cd XMJ-MacOS-Install  || { echo "Failed to get to the XMJ-MacOS-Install/ folder"; exit; }
-  # cd $TEMP_FOLDER  || { echo "create_temp_folder: Failed to change directory to ${TEMP_FOLDER}"; exit; }
-
-  if [ -d "$TEMP_FOLDER" ]; then
-    log "Temporary folder $TEMP_FOLDER created"
-  else
-    log "Failed to create temporary folder $TEMP_FOLDER"
-    exit 1
-  fi
+  # if [ -d "$TEMP_FOLDER" ]; then
+  #   log "Temporary folder $TEMP_FOLDER created"
+  # else
+  #   log "Failed to create temporary folder $TEMP_FOLDER"
+  #   exit 1
+  # fi
 
   echo " Temporary folder $TEMP_FOLDER created"
   echo "================================================================="
@@ -237,7 +237,6 @@ create_temp_folder(){
 xmj_download_src() {
   ####################################
   ## Download the source code from the author's website
-  ##
   ## for the specified version
   ####################################
   echo ""
@@ -261,6 +260,7 @@ xmj_download_src() {
 
   if [ ! -f "$XMJ_SRC_FILENAME_COMPRESSED" ]; then
     log "Source file $XMJ_SRC_FILENAME_COMPRESSED not found after download"
+    echo " Source file $XMJ_SRC_FILENAME_COMPRESSED not found after download"
     exit 1
   fi
   log "Source file $XMJ_SRC_FILENAME_COMPRESSED downloaded successfully"
@@ -268,7 +268,7 @@ xmj_download_src() {
   echo " Source code downloaded to $TEMP_FOLDER/$XMJ_SRC_FILENAME_COMPRESSED"
   echo "================================================================="
 
-  # Change back to the original directory
+  # Return to the original folder
   popd
 }
 
@@ -290,21 +290,21 @@ xmj_uncompress_src() {
   # Change to the temporary folder
   pushd "$TEMP_FOLDER" || { echo "xmj_uncompress_src: Failed to change directory to ${TEMP_FOLDER}"; exit; }
 
-  tar -zxvf ./"$XMJ_SRC_FILENAME_COMPRESSED"
+  tar -zxvf ./"$XMJ_SRC_FILENAME_COMPRESSED" || echo {"xmj_uncompress_src: Failed to uncompress ${XMJ_SRC_FILENAME_COMPRESSED}"}
 
-  if [ -d "$XMJ_UNCOMPRESS_FOLDER" ]; then
-    log "Source code uncompressed to $XMJ_UNCOMPRESS_FOLDER"
-  else
-    log "folder $XMJ_UNCOMPRESS_FOLDER not found after uncompression, suspecting problem with decompression"
-    exit 1
-  fi
+  # # Secondary check for success: if the folder resulting from decompession is not there, fail 
+  # if [ -d "$XMJ_UNCOMPRESS_FOLDER" ]; then
+  #   log "Source code uncompressed to $XMJ_UNCOMPRESS_FOLDER"
+  # else
+  #   log "folder $XMJ_UNCOMPRESS_FOLDER not found after uncompression, suspecting problem with decompression"
+  #   exit 1
+  # fi
 
   echo " Source code uncompressed to $XMJ_UNCOMPRESS_FOLDER"
   echo "================================================================="
 
   # Change back to the original folder
   popd
-
 }
 
 xmj_check_files_to_be_patched() {
@@ -364,12 +364,13 @@ xmj_create_patches_for_version() {
   ####################################
   echo ""
   echo "================================================================="
-  echo " Creating the patch files for version $XMJ_VERSION"
+  echo " Generating the patch files for version $XMJ_VERSION"
   echo "================================================================="
 
   log "Generating the patch files for version $XMJ_VERSION"
 
-  pushd patches || { echo "xmj_create_patches: Failed to change directory to patches"; exit; }
+  # go to the patches folder
+  pushd "$PATCHES_FOLDER" || { echo "xmj_create_patches: Failed to change directory to patches"; exit 1; }
 
   # Create the patches for the source files
   sh create_patches_for_version.sh -v "$XMJ_VERSION" || { echo "xmj_create_patches: Failed to create patches for version $XMJ_VERSION"; exit; }
@@ -377,6 +378,7 @@ xmj_create_patches_for_version() {
   echo " Patches files for xmj_$XMJ_VERSION created"
   echo "================================================================="
 
+  # return to the previous folder
   popd
 }
 
@@ -406,22 +408,18 @@ xmj_adjust_src_port_number() {
 
   log "Adjusting port number in source"
 
-  # Go to the extracted folder
-  # pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "xmj_adjust_src_port_number: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
-
   patch -u "$XMJ_UNCOMPRESS_FOLDER"/gui.c -i "$PATCHES_FOLDER"/gui_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch gui.c"; exit; }
   patch -u "$XMJ_UNCOMPRESS_FOLDER"/controller.c -i "$PATCHES_FOLDER"/controller_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch controller.c"; exit; }
   patch -u "$XMJ_UNCOMPRESS_FOLDER"/greedy.c -i "$PATCHES_FOLDER"/greedy_xmj_"$XMJ_VERSION"_socket_port_fix.patch || { echo "xmj_adjust_src_port_number: Failed to patch greedy.c"; exit; }
 
   echo " Patches to adjust default network port number from 5000 to 4000 applied"
   echo "================================================================="
-
-  # Change back to the original folder
-  # popd
 }
 
 xmj_adjust_src_executables_path() {
   ####################################
+  ## NOW IRRELEVANT as the script sets the required local path
+  ##
   ## Sets the game path to mj-player and mj-server to the 
   ## relative same path as the main executable ('./')
   ##
@@ -435,8 +433,6 @@ xmj_adjust_src_executables_path() {
   ## For the moment, the solution is to patch the source code to add the './' to the 
   ## way the execution of the mj-player and mj-server are made
   ##
-  ## TODO: A better way might be to wrap the mj-player an mj-server in their own bundles
-  ## and stores these bundle in the App bundle and change the Info.plist to find these bundles.
   ####################################
   echo ""
   echo "================================================================="
@@ -451,16 +447,10 @@ xmj_adjust_src_executables_path() {
 
   log "Adjusting executable relative paths in source"
 
-  # Go to the extracted folder
-  # pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "xmj_adjust_src_executables_path: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
-
   patch -u "$XMJ_UNCOMPRESS_FOLDER"/gui.c -i "$PATCHES_FOLDER"/gui_xmj_"$XMJ_VERSION"_executables_relative_path_fix.patch || { echo "xmj_adjust_src_executables_path: Failed to patch gui.c"; exit; }
 
   echo " Patches to adjust executables relative paths done"
   echo "================================================================="
-
-  # Change back to the original folder
-  # popd
 }
 # This concludes the essential code changes - could be done in a smarter way, presumably.
 
@@ -486,16 +476,11 @@ xmj_patch_tiles_display_bug_fix_for_xmj_1_17() {
 
   log "Tiles display Bug fix for xmj-1.17"
 
-  # Go to the extracted folder
-  # pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
-
-  # # Fix the bug in gui.c
+  # Fix the bug in gui.c
   patch -u "$XMJ_UNCOMPRESS_FOLDER"/gui.c -i "$PATCHES_FOLDER"/gui_xmj_"$XMJ_VERSION"_tiles_display_fix.patch || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to patch gui.c"; exit; }
 
   echo " Tiles Display Bug fix for xmj-1.17 applied"
   echo "================================================================="
-
-  # popd
 }
 
 check_xcode_cli_tools() {
@@ -514,16 +499,14 @@ check_xcode_cli_tools() {
 
   if [ "$XCODE_INSTALLED" = false ]; then
     log "Xcode Command Line Tools are not installed. Installing them now..."
-    xcode-select --install
-  
-    echo " Xcode Command Line Tools are installed"
-    echo "================================================================="
-
+    xcode-select --install || echo {"check_xcode_cli_tools: Failed to install the tools"; exit 1;}
+    echo " Xcode Command Line Tools installed successfully"
   else
     log " Xcode Command Line Tools are already installed, skipping"
-    echo "================================================================="
-
+    echo " Xcode Command Line Tools are already installed, skipping"
   fi
+
+  echo "================================================================="
 }
 
 install_compiling_essentials() {
@@ -541,47 +524,52 @@ install_compiling_essentials() {
 
   log "Installing compiling essentials"
 
+  # Install or upgrade homebrew, if needed
   if [ "$BREW_INSTALLED" = false ]; then
     log "Homebrew is not installed. Installing it now..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"  || echo {"install_compiling_essentials: Failed to install Homebrew"; exit 1;}
+    echo " Homebrew installed successfully"
   else
     log "Homebrew is already installed. Updating it..."
-    brew update
+    brew update || echo {"install_compiling_essentials: Failed to update Homebrew, skipping.";}
+    echo " Homebrew updated successfully"
   fi
-
-  echo " Homebrew installed or updated successfully"
 
 
   # Install or update GTK+ using homebrew, if needed
   if [ "$GTK_INSTALLED" = false ]; then
     log "GTK+ is not installed. Installing it now..."
-    brew install gtk+
+    brew install gtk+  || echo {"install_compiling_essentials: Failed to install gtk+"; exit 1;}
+    echo " GTK+ installed successfully"
   else 
     if [ "$GTK_NEEDS_UPDATE" = true ]; then
       log "GTK+ is installed but needs to be updated. Updating it now..."
-      brew upgrade gtk+
+      brew upgrade gtk+ || echo {"install_compiling_essentials: Failed to update gtk+, skipping.";}
+      echo "GTK+ upgraded successfully"
     else
       log "GTK+ is already installed and up to date."
+      echo " GTK+ is already installed and up to date."
+
     fi
   fi
 
-  echo " GTK+ installed or updated successfully"
-
-
-  # Install pkg-config using homebrew, if needed
+  # Install or upgrade pkg-config using homebrew, if needed
   if [ "$PKG_CONFIG_INSTALLED" = false ]; then
     log "pkg-config is not installed. Installing it now..."
-    brew install pkg-config
+    brew install pkg-config || echo {"install_compiling_essentials: Failed to install pkg-config"; exit 1;}
+    echo " pkg-config installed successfully"
   else 
     if [ "$PKG_CONFIG_NEEDS_UPDATE" = true ]; then
       log "pkg-config is installed but needs to be updated. Updating it now..."
-      brew upgrade pkg-config
+      brew upgrade pkg-config   || echo {"install_compiling_essentials: Failed to update pkg-config, skipping.";}
+      echo " pkg-config upgraded successfully"
     else
       log "pkg-config is already installed and up to date."
+      echo " pkg-config is already installed and up to date."
     fi
   fi
 
-  echo " pkg-config installed or updated successfully"
+  echo ""
   echo " -> Compiling essentials installed successfully"
   echo "================================================================="
 }
@@ -613,7 +601,7 @@ make_executables() {
 
   if ! make; then
     log "make command failed. Please check the output for errors."
-    echo "Make failed, please check the output for errors."
+    echo " Make failed, please check the output for errors."
     exit 1
   fi
 
@@ -673,8 +661,6 @@ app_bundle_create_tree() {
 
   log "Creating App Bundle folder tree"
 
-  # pushd "$TEMP_FOLDER" || { echo "app_bundle_create_tree: Failed to change directory to ${TEMP_FOLDER}"; exit; }
-
   if [ -d "$APP_FOLDER" ]; then
     log "Removing existing App Bundle folder ${APP_FOLDER}"
     rm -rf "$APP_FOLDER"
@@ -688,9 +674,6 @@ app_bundle_create_tree() {
 
   echo " App Bundle folder tree created in ${APP_FOLDER}"
   echo "================================================================="
-
-  # Change back to the original folder
-  # popd || { echo "app_bundle_create_tree: Failed to change back to the original folder"; exit; }
 }
 
 app_bundle_create_info_plist() {
@@ -718,14 +701,14 @@ app_bundle_create_info_plist() {
 
   # set the variables of interest
   CF_BUNDLE_DISPLAY_NAME="XMJ Mahjong"
-  CF_BUNDLE_NAME=${CF_BUNDLE_DISPLAY_NAME}
+  CF_BUNDLE_NAME="$CF_BUNDLE_DISPLAY_NAME"
   CF_BUNDLE_INFO_STRING="XMJ Mahjong (c) 2000-now by Julian Bradfield"
   # CF_BUNDLE_IDENTIFIER="com.xmj-mahjong.www"
   CF_BUNDLE_IDENTIFIER="org.julianbradfield.mahjong" # This appears more appropriate than the above
   # CF_BUNDLE_EXECUTABLE="xmj" # This is the main executable file
-  CF_BUNDLE_EXECUTABLE="xmj-script" # This is the script that could be executed instead of the main executable
-  CF_BUNDLE_VERSION=${XMJ_VERSION}
-  CF_BUNDLE_SHORT_VERSION="${XMJ_VERSION}.0" # maintenance version is not specified in the original
+  CF_BUNDLE_EXECUTABLE="$APP_EXECUTABLE" # This is the script that could be executed instead of the main executable
+  CF_BUNDLE_VERSION="$XMJ_VERSION"
+  CF_BUNDLE_SHORT_VERSION="$XMJ_VERSION.0" # maintenance version is not specified in the original
   CF_BUNDLE_ICON_FILE="xmj"
   CF_BUNDLE_INFO_DICT_VERSION="6.0" # Specified by Apple
   CF_BUNDLE_PACKAGE_TYPE="APPL" # Application bundle
@@ -769,11 +752,7 @@ EndOfText
 
   # Save the info.plist file
   printf '%s' "$INFO_PLIST_CONTENT" > "$APP_INFO_PLIST_LOCATION"  || { echo "app_bundle_create_info_plist: Failed to save ${APP_INFO_PLIST_LOCATION}"; exit; }
-  # printf '%s' "$INFO_PLIST" > Info.plist  || { echo "app_bundle_create_info_plist: Failed to save Info.plist to ${APP_NAME}/Contents"; exit; }
 
-  # cd ../..
-
-  # echo "Info.plist created in ${APP_NAME}/Contents"
   echo " Info.plist created in ${APP_INFO_PLIST_LOCATION}"
   echo "================================================================="
 }
@@ -784,11 +763,13 @@ app_bundle_create_launch_miniscript() {
   ##
   ## This script's purpose is to make the local folder of the executable 
   ## the current working folder. This is because by default when launching
-  ## an app from a bundle, the current working folder is the folder where the app is, like /Applications
+  ## an app from a bundle, the current working folder is the folder 
+  ## where the app is, like /Applications
+  ##
+  ## It is also used to intialise some variables for portability
+  ## so it does not depend on other installed libraries
   ##
   ## this script is stored in the MacOS folder of the App Bundle
-  ##
-  ## maybe unnecessary ?
   ####################################
   echo ""
   echo "================================================================="
@@ -796,32 +777,37 @@ app_bundle_create_launch_miniscript() {
   echo "================================================================="
 
   log "Creating App Bundle launch miniscript"
-
-  # pushd "$APP_EXECUTABLES_FOLDER" || { echo "app_bundle_create_launch_miniscript: Failed to change directory to ${APP_EXECUTABLES_FOLDER}"; exit; }
-
+  
   MINI_SCRIPT_CONTENT=$(cat <<EndOfText
 #!/bin/bash
+
+# Change to the folder this script is in
 cd "\${0%/*}"
-./xmj      
+
+# Export the path so mj-player and mj-server are found (without patching)
+export PATH="\$(pwd):\$PATH"
+
+# identify the root of the app bundle (2 folders above the current script)
+APP_FOLDER="\$(dirname "\$0")/../.."
+
+# Ensure that the needed pixbuf references are loaded
+export GDK_PIXBUF_MODULE_FILE="\$APP_FOLDER/Contents/Libs/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+export GDK_PIXBUF_MODULEDIR="\$APP_FOLDER/Contents/Libs/gdk-pixbuf-2.0/2.10.0/loaders"
+
+# Ensure that the dylib references the app bundle's
+export DYLD_LIBRARY_PATH="\$APP_FOLDER/Contents/Libs"
+
+# Run the app
+exec "\$APP_FOLDER/Contents/MacOS/xmj" "\$@" 
 EndOfText
 )
 
-  printf '%s' "$MINI_SCRIPT_CONTENT" > "$MINI_SCRIPT_LOCATION" || { echo "app_bundle_create_launch_miniscript: Failed to save ${MINI_SCRIPT_LOCATION}"; exit; }
+  printf '%s' "$MINI_SCRIPT_CONTENT" > "$MINI_SCRIPT_LOCATION" || { echo "app_bundle_create_launch_miniscript: Failed to save ${MINI_SCRIPT_LOCATION}"; exit 1; }
 
+  chmod +x "$MINI_SCRIPT_LOCATION"  || { echo "app_bundle_create_launch_miniscript: Failed to make the miniscript executable"; exit 1; }
 
-  # # Create the script that will be used to launch the app
-  # echo "#!/bin/bash"       > xmj-script
-  # echo "cd \"\${0%/*}\""  >> xmj-script
-  # echo "./xmj"            >> xmj-script
-
-  # make this script executable
-  # chmod +x xmj-script
-  chmod +x "$MINI_SCRIPT_LOCATION"
-
-  echo " xmj-script created in ${MINI_SCRIPT_LOCATION}"
+  echo " xmj-script successfully created in ${MINI_SCRIPT_LOCATION}"
   echo "================================================================="
-
-  # popd || { echo "app_bundle_create_launch_miniscript: Failed to change back to the original folder"; exit; }
 }
 
 app_bundle_copy_executables() {
@@ -840,30 +826,9 @@ app_bundle_copy_executables() {
   cp "$XMJ_UNCOMPRESS_FOLDER"/mj-player "$APP_EXECUTABLES_FOLDER"/
   cp "$XMJ_UNCOMPRESS_FOLDER"/mj-server "$APP_EXECUTABLES_FOLDER"/
 
-  # cd MacOS   || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/MacOS' folder"; exit; }
-
-  # cp ../../../xmj  .
-  # cp ../../../mj-player .
-  # cp ../../../mj-server .
-  # cp "$XMJ_SRC_FILENAME"/xmj       "$APP_EXECUTABLES"/
-  # cp "$XMJ_SRC_FILENAME"/mj-player "$APP_EXECUTABLES"/
-  # cp "$XMJ_SRC_FILENAME"/mj-server "$APP_EXECUTABLES"/
-
-  # cp -R ../../../tiles-numbered .
-  # cp -R ../../../tiles-small .
-  # cp -R ../../../tiles-v1 .
-  # cp -R ../../../fallbacktiles .
-  # cp -R "$XMJ_SRC_FILENAME"/tiles-numbered "$APP_EXECUTABLES"/
-  # cp -R "$XMJ_SRC_FILENAME"/tiles-small    "$APP_EXECUTABLES"/
-  # cp -R "$XMJ_SRC_FILENAME"/tiles-v1       "$APP_EXECUTABLES"/
-  # cp -R "$XMJ_SRC_FILENAME"/fallbacktiles  "$APP_EXECUTABLES"/
-
   echo " Executables copied to ${APP_EXECUTABLES_FOLDER}"
   echo "================================================================="
-
-  # cd ..
 }
-
 
 app_bundle_copy_tilesets() {
   ####################################
@@ -882,28 +847,8 @@ app_bundle_copy_tilesets() {
   cp -R "$XMJ_UNCOMPRESS_FOLDER"/tiles-v1       "$APP_EXECUTABLES_FOLDER"/
   cp -R "$XMJ_UNCOMPRESS_FOLDER"/fallbacktiles  "$APP_EXECUTABLES_FOLDER"/
 
-  # cd MacOS   || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/MacOS' folder"; exit; }
-
-  # cp ../../../xmj  .
-  # cp ../../../mj-player .
-  # cp ../../../mj-server .
-  # cp "$XMJ_SRC_FILENAME"/xmj       "$APP_EXECUTABLES"/
-  # cp "$XMJ_SRC_FILENAME"/mj-player "$APP_EXECUTABLES"/
-  # cp "$XMJ_SRC_FILENAME"/mj-server "$APP_EXECUTABLES"/
-
-  # cp -R ../../../tiles-numbered .
-  # cp -R ../../../tiles-small .
-  # cp -R ../../../tiles-v1 .
-  # cp -R ../../../fallbacktiles .
-  # cp -R "$XMJ_SRC_FILENAME"/tiles-numbered "$APP_EXECUTABLES"/
-  # cp -R "$XMJ_SRC_FILENAME"/tiles-small    "$APP_EXECUTABLES"/
-  # cp -R "$XMJ_SRC_FILENAME"/tiles-v1       "$APP_EXECUTABLES"/
-  # cp -R "$XMJ_SRC_FILENAME"/fallbacktiles  "$APP_EXECUTABLES"/
-
   echo " Tilesets copied to ${APP_EXECUTABLES_FOLDER}"
   echo "================================================================="
-
-  # cd ..
 }
 
 app_bundle_prepare_and_install_iconset() {
@@ -977,9 +922,9 @@ app_bundle_prepare_and_install_iconset() {
     echo "================================================================="
     echo " Downloading iconset"
     echo "================================================================="
-    curl -L -O https://github.com/Squizzy/XMJ-Mahjong-MacOS-Script/raw/development/icns/xmj.icns || { echo "app_bundle_prepare_and_install_iconset: Failed to download iconset"; exit; }
+    curl -L -O https://github.com/Squizzy/XMJ-Mahjong-MacOS-Script/raw/development/icns/xmj.icns || { echo "app_bundle_prepare_and_install_iconset: Failed to download iconset."; exit 1; }
 
-    mv ./xmj.icns "$APP_RESOURCES_FOLDER"/
+    mv ./xmj.icns "$APP_RESOURCES_FOLDER"/  || { echo "app_bundle_prepare_and_install_iconset: Failed to copy the iconset to ${APP_RESOURCES_FOLDER}"; exit 1; }
 
     echo " Iconset downloaded and moved to ${APP_RESOURCES_FOLDER}"
 
@@ -998,19 +943,11 @@ app_bundle_prepare_and_install_iconset() {
   fi
   
   echo "================================================================="
-  # cd Resources  || { echo "Failed to get to the 'XMJ Mahjong.app/Contents/Resources/' folder"; exit; }
-  # cd ..
-
-  # cd ../..
 }
 
 # Below two functions with dylibbundler are for portability.
-# With this script, it is not necessary unless the app is prepared to be redistributed.
-# There seems to be a problem with libgio - 2 versions running, causing conflict
-# This seems due to the fact the MacOS libgtk-quartz and libgtk-quartz libs are using
-# an older version? (7801 vs 8401)
-# Currently, it seems a challenge to make the app portable
-
+# Currently the below doesn't work fully and the app is not portable with it
+# So prefer to use the next, manual, method
 install_dylibbundler() {
   ####################################
   ## Install dylibbundler
@@ -1044,7 +981,8 @@ install_dylibbundler() {
   echo " executables xmj, mj-player and mj-server"
   echo " into the App Bundle, so it can be shared with others"
   echo ""
-  echo " Note that this app is not maintained actively and does not seem to work well with MacOS 15"
+  echo " The implementation here does not fully work"
+  echo " Prefer the alternative method provided"
   echo "========================================================"
 
   log "installing dylibbundler"
@@ -1065,11 +1003,7 @@ install_dylibbundler() {
     fi
   fi
 
-  # brew install dylibbundler
-
-  # echo "dylibbundler installed successfully"
   echo "========================================================"
-
 }
 
 execute_dylibbundler() {
@@ -1087,21 +1021,9 @@ execute_dylibbundler() {
   ##
   ## https://github.com/auriamg/macdylibbundler
   ##
+  ##
+  ## TODO: This might need to be applied against the bundled dylibs as well
   ####################################
-
-  # run the app against each executable.
-  # For example, when in terminal we are in the same folder as the app bundle:
-  # (above "XMJ Mahjong.app"), use:
-  
-  # echo "========================================================"
-  # echo " Run dylibbundler"
-  # echo "========================================================"
-  # cd ..
-  # /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/xmj -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
-  # 
-  # /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-player -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
-  # 
-  # /usr/local/bin/dylibbundler  -b  -p ./XMJ\ Mahjong.app/Contents/Libs -x ./XMJ\ Mahjong.app/Contents/MacOS/mj-server -d ./XMJ\ Mahjong.app/Contents/Libs -cd -ns -of
   echo ""
   echo "========================================================"
   echo " Running dylibbundler"
@@ -1112,52 +1034,43 @@ execute_dylibbundler() {
 
   log "Executing dylibbundler "
 
-  # cd /Applications ||  { echo "execute_dylibbundler: Failed to change directory to /Applications"; exit; }
-
-  # pushd "$APP_FOLDER" || { echo "execute_dylibbundler: Failed to change directory to ${APP_FOLDER}"; exit; }
-
   dylibbundler -b -d "$APP_LIBS_FOLDER" -p "@executable_path/../$APP_LIBS_FOLDER_NAME" -cd -ns -of -x "$APP_EXECUTABLES_FOLDER/xmj" 
   
   dylibbundler -b -d "$APP_LIBS_FOLDER" -p "@executable_path/../$APP_LIBS_FOLDER_NAME" -cd -ns -of -x "$APP_EXECUTABLES_FOLDER/mj-player"
   
   dylibbundler -b -d "$APP_LIBS_FOLDER" -p "@executable_path/../$APP_LIBS_FOLDER_NAME" -cd -ns -of -x "$APP_EXECUTABLES_FOLDER/mj-server"
 
-
-  # /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/xmj -d "./$APP_LIBS" -cd -ns -of
-  
-  # /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/mj-player -d "./$APP_LIBS" -cd -ns -of
-  
-  # /usr/local/bin/dylibbundler -b -p "./$APP_LIBS" -x "./$APP_EXECUTABLES"/mj-server -d "./$APP_LIBS" -cd -ns -of
-
   echo " dylibbundler executed successfully"
   echo "========================================================"
 }
 
+
 # Below replace the use of dylibbundler
 # This is a more manual way to do the same thing, but it is more reliable.
-dylib_handling_identify_dylibs_to_import() {
+dylib_handling_for_executables_identify_dylibs_to_import() {
   ####################################
   ## Identify the dylibs to import
   ##
   ## This will identify the libraries used by the executables
   ## and store them in the TEMP_FOLDER/dylibs_to_import.txt file
+  ## Exclude the standard MacOS libraries
   ####################################
   echo ""
   echo "================================================================="
-  echo " Identifying the dylibs to import"
+  echo " Identifying the non-standard dylibs for the executables to the App Bundle"
   echo "================================================================="
 
-  log "Identifying dylibs to import"
+  log "Identifying the non-standard dylibs for the executables to the App Bundle"
 
   # Go to the extracted folder
   pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "identify_dylibs_to_import: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
 
   # Use otool to find the libraries used by the executables
   # NR>1 = skip the first line
-  # greps out the standard libraries to isolate the non-standard libraries used by the app (grep -v means exclude)
+  # greps out the standard libraries to isolate the non-standard 
+  #   libraries used by the app (grep -v means exclude)
 
   echo " Identifying dylibs used by the executables in ${APP_EXECUTABLES_FOLDER}"
-  echo "================================================================="
 
   echo ""
   XMJ_OTOOL=$(otool -L "$APP_EXECUTABLES_FOLDER/xmj" | grep  -v "\/System\/Library\/" | grep -v "\/usr\/lib\/" | awk 'NR>1 {print $1}')
@@ -1208,14 +1121,14 @@ dylib_handling_identify_dylibs_to_import() {
   fi
 
   echo ""
-  echo " non-standard dylibs identified stored in ${TEMP_FOLDER}"
+  echo " List(s) of identified non-standard dylibs stored in ${TEMP_FOLDER}"
   echo "================================================================="
 
   # Change back to the original folder
   popd || { echo "identify_dylibs_to_import: Failed to change back to the original folder"; exit; }
 }
 
-dylib_handling_copy_dylibs_to_import() {
+dylib_handling_for_executables_copy_dylibs_to_import() {
   ####################################
   ## Copy the dylibs to import into the App Bundle
   ## ## This will copy the dylibs identified by the otool command
@@ -1223,17 +1136,19 @@ dylib_handling_copy_dylibs_to_import() {
   ####################################
   echo ""
   echo "================================================================="
-  echo " Copying the dylibs to import into the App Bundle"
+  echo " Copying the non-standard dylibs for the executables to the App Bundle"
   echo "================================================================="
 
-  log "Copying dylibs to import into the App Bundle"
+  log "Copying the non-standard dylibs for the executables to the App Bundle"
 
   # If there is a file with the list of dylibs to import
   # Then read it line by line (each line contains the absolute path to the lib)
   # If the lib is found, then copy it to the Libs folder
   if [ -f "$TEMP_FOLDER"/xmj_dylibs_to_import.txt ]; then
     echo " Copying xmj dylibs to import"
-    while IFS= read -r dylib; do
+    # the  '|| [ -n "$dylib" ]' ensures that the last line is read even if there is no line feed
+    while IFS= read -r dylib || [ -n "$dylib" ]; do
+      echo "This one one: $dylib"
       if [ -f "$dylib" ]; then
         DYLIB_FILENAME=$(basename "$dylib")
         if [ ! -f "$APP_LIBS_FOLDER/$DYLIB_FILENAME" ]; then
@@ -1254,7 +1169,7 @@ dylib_handling_copy_dylibs_to_import() {
 
   if [ -f "$TEMP_FOLDER"/mj_player_dylibs_to_import.txt ]; then
     echo " Copying mj-player dylibs to import"
-    while IFS= read -r dylib; do
+    while IFS= read -r dylib || [ -n "$dylib" ]; do
       if [ -f "$dylib" ]; then
         DYLIB_FILENAME=$(basename "$dylib")
         if [ ! -f "$APP_LIBS_FOLDER/$DYLIB_FILENAME" ]; then
@@ -1275,7 +1190,7 @@ dylib_handling_copy_dylibs_to_import() {
 
   if [ -f "$TEMP_FOLDER"/mj_server_dylibs_to_import.txt ]; then
     echo " Copying mj-server dylibs to import"
-    while IFS= read -r dylib; do
+    while IFS= read -r dylib || [ -n "$dylib" ]; do
       if [ -f "$dylib" ]; then
         DYLIB_FILENAME=$(basename "$dylib")
         if [ ! -f "$APP_LIBS_FOLDER/$DYLIB_FILENAME" ]; then
@@ -1294,9 +1209,11 @@ dylib_handling_copy_dylibs_to_import() {
     echo " No mj-server dylibs to import found"
   fi
 
+  echo " Non-standard dylibs for the executables copied to the App Bundle"
+  echo "================================================================="
 }
 
-dylib_handling_update_executables_for_bundled_dylibs(){
+dylib_handling_for_executables_update_executables_references(){
   ####################################
   ## Update the executables to use the bundled dylibs
   ##
@@ -1315,15 +1232,20 @@ dylib_handling_update_executables_for_bundled_dylibs(){
   # Go to the App Bundle executables folder
   pushd "$APP_EXECUTABLES_FOLDER" || { echo "update_executables_for_bundled_dylibs: Failed to change directory to ${APP_EXECUTABLES_FOLDER}"; exit; }
 
+  # Set the rpath
+  install_name_tool -add_rpath "@executable_path/../$APP_LIBS_FOLDER_NAME" "$APP_EXECUTABLES_FOLDER/xmj"
+  install_name_tool -add_rpath "@executable_path/../$APP_LIBS_FOLDER_NAME" "$APP_EXECUTABLES_FOLDER/mj-player"
+  install_name_tool -add_rpath "@executable_path/../$APP_LIBS_FOLDER_NAME" "$APP_EXECUTABLES_FOLDER/mj-server"
+
   # Use install_name_tool to update the path of the dylibs in the executables
   # to point to the dylibs in the App Bundle
   # NR>1 = skip the first line
   echo " Updating xmj executable to use bundled dylibs"
   if [ -f "$TEMP_FOLDER/xmj_dylibs_to_import.txt" ]; then
-    while IFS= read -r dylib; do
+    while IFS= read -r dylib || [ -n "$dylib" ]; do
       if [ -f "$dylib" ]; then
         DYLIB_FILENAME=$(basename "$dylib")
-        install_name_tool -change "$dylib" "@executable_path/../$APP_LIBS_FOLDER_NAME/$DYLIB_FILENAME" xmj || { echo "update_executables_for_bundled_dylibs: Failed to update xmj executable"; exit; }
+        install_name_tool -change "$dylib" "@rpath/$DYLIB_FILENAME" xmj || { echo "update_executables_for_bundled_dylibs: Failed to update xmj executable"; exit; }
         echo " Updated xmj executable to use $DYLIB_FILENAME from the App Bundle"
       else
         echo " Warning: $dylib does not exist, skipping"
@@ -1335,10 +1257,10 @@ dylib_handling_update_executables_for_bundled_dylibs(){
   
   echo " Updating mj-player executable to use bundled dylibs"
   if [ -f "$TEMP_FOLDER/mj_player_dylibs_to_import.txt" ]; then
-    while IFS= read -r dylib; do
+    while IFS= read -r dylib || [ -n "$dylib" ]; do
       if [ -f "$dylib" ]; then
         DYLIB_FILENAME=$(basename "$dylib")
-        install_name_tool -change "$dylib" "@executable_path/../$APP_LIBS_FOLDER_NAME/$DYLIB_FILENAME" mj-player || { echo "update_executables_for  bundled_dylibs: Failed to update mj-player executable"; exit; }
+        install_name_tool -change "$dylib" "@rpath/$DYLIB_FILENAME" mj-player || { echo "update_executables_for  bundled_dylibs: Failed to update mj-player executable"; exit; }
         echo " Updated mj-player executable to use $DYLIB_FILENAME from the App Bundle"
       else
         echo " Warning: $dylib does not exist, skipping"
@@ -1350,10 +1272,10 @@ dylib_handling_update_executables_for_bundled_dylibs(){
 
   echo " Updating mj-server executable to use bundled dylibs"
   if [ -f "$TEMP_FOLDER/mj_server_dylibs_to_import.txt" ]; then
-    while IFS= read -r dylib; do
+    while IFS= read -r dylib || [ -n "$dylib" ]; do
       if [ -f "$dylib" ]; then
         DYLIB_FILENAME=$(basename "$dylib")
-        install_name_tool -change "$dylib" "@executable_path/../$APP_LIBS_FOLDER_NAME/$DYLIB_FILENAME" mj-server || { echo "update_executables_for_bundled_dylibs: Failed to update mj-server executable"; exit; }
+        install_name_tool -change "$dylib" "@rpath/$DYLIB_FILENAME" mj-server || { echo "update_executables_for_bundled_dylibs: Failed to update mj-server executable"; exit; }
         echo " Updated mj-server executable to use $DYLIB_FILENAME from the App Bundle"
       else
         echo " Warning: $dylib does not exist, skipping"
@@ -1363,12 +1285,15 @@ dylib_handling_update_executables_for_bundled_dylibs(){
     echo " No mj-server dylibs to import found, skipping"
   fi
 
+  echo ""
   echo " Executables updated to use bundled dylibs"
   echo "================================================================="
 
+  # Return to the previous folder
+  popd
 }
 
-dylib_handling_load_non_standard_dylibs_needed_by_dylibs(){
+dylib_handling_for_bundled_dylibs_load_non_standard_dylibs_needed_by_dylibs(){
   ####################################
   ## Load the dylibs referenced by the bundled dylibs
   ##
@@ -1419,7 +1344,7 @@ dylib_handling_load_non_standard_dylibs_needed_by_dylibs(){
   echo "================================================================="
 }
 
-dylib_handling_update_bundled_dylibs_references() {
+dylib_handling_for_bundled_dylibs_update_bundled_dylibs_references() {
   ####################################
   ## Update the references to the bundled dylibs
   ##
@@ -1442,17 +1367,22 @@ dylib_handling_update_bundled_dylibs_references() {
   for dylib in $DYLIBS_IN_LIBS; do
     DYLIB_FILENAME=$(basename "$dylib")
 
+    # set the instll name to the "@rpath/filename"
+    # This is to make sure the application will open this local file not the 
+    # reference inside of it
+    install_name_tool -id "@rpath/$DYLIB_FILENAME" "$dylib"
+
     # find all the relevant dylibs in this dylib that need to be re-referenced 
     # This means not the ones which are already using the correct relative path
     # and not the standard MacOS ones
-    DYLIB_OTOOL=$(otool -L "$dylib" | grep  -v "\/System\/Library\/" | grep -v "\/usr\/lib\/" | grep -v "\@executable_path\/" | awk 'NR>1 {print $1}')
+    DYLIB_OTOOL=$(otool -L "$dylib" | grep  -v "\/System\/Library\/" | grep -v "\/usr\/lib\/" | grep -v "\@executable_path\/" | grep -v "\@rpath\/" | awk 'NR>1 {print $1}')
 
     for item in $DYLIB_OTOOL; do
       echo "$item"
       item_FILENAME=$(basename "$item")
 
-      install_name_tool -change "$item" "@executable_path/../$APP_LIBS_FOLDER_NAME/$item_FILENAME" "$APP_LIBS_FOLDER/$DYLIB_FILENAME" || { echo "update_bundled_dylibs_references: Failed to update $DYLIB_FILENAME"; exit; }
-      echo " Updated reference for $item to use @executable_path/../$APP_LIBS_FOLDER_NAME/$item_FILENAME"
+      install_name_tool -change "$item" "@rpath/$item_FILENAME" "$APP_LIBS_FOLDER/$DYLIB_FILENAME" || { echo "update_bundled_dylibs_references: Failed to update $DYLIB_FILENAME"; exit; }
+      echo " Updated reference for $item to use @rpath/$item_FILENAME"
     done
 
   done
@@ -1461,9 +1391,41 @@ dylib_handling_update_bundled_dylibs_references() {
   echo "================================================================="
 }
 
+dylib_handling_add_gdk_pixbuf_loaders_and_cache() {
+  #####################################
+  ## Import gdk_pixbuf XMP .so and cache
+  ##
+  ## The compilation makes use of pkg-config which uses the 
+  ## homebrew version of gdk_pixbuf which refers to the homebrew
+  ## version in the binary. As it is dynamically loaded, this needs 
+  ## to be adjusted partly in real time
+  ######################################
+  echo ""
+  echo "================================================================="
+  echo " importing the gdk-pixbuf loaders and regenerate cache"
+  echo "================================================================="
+
+  log "Updating references in the bundled dylibs"
+
+  # create the repository for the pixbuf loaders and cache
+  mkdir -p "$APP_LIBS_FOLDER/gdk-pixbuf-2.0/2.10.0" || {echo "dylib_handling_add_gdk_pixbuf_loaders_and_cache: failed to create folder."; exit 1;}
+
+  # Copy the loaders and the cache
+  cp -r /usr/local/lib/gdk-pixbuf-2.0/2.10.0/ "$APP_LIBS_FOLDER/gdk-pixbuf-2.0/2.10.0/" || {echo "dylib_handling_add_gdk_pixbuf_loaders_and_cache: failed to copy files.";  exit 1}
+
+  command -v gdk-pixbuf-query-loaders >/dev/null 2>&1 || { echo >&2 "gdk-pixbuf-query-loaders is required (part of gtk+) but not present. Aborting."; exit 1; }
+
+  # Regenerate the gdk_pixbuf cache with the app bundle's
+  GDK_PIXBUF_MODULEDIR="$APP_FOLDER/Contents/Libs/gdk-pixbuf-2.0/2.10.0/loaders" gdk-pixbuf-query-loaders > "$APP_FOLDER/Contents/Libs/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+
+  echo " gdk-pixbuf processed and cache regenerated"
+  echo "================================================================="
+}
+
 app_bundle_install_to_Applications() {
   #####################################
-  ## Copy the app bundle to the applications folder / launchpad
+  ## Copy the app bundle to the 
+  ## /Applications folder -> launchpad
   #####################################
   echo ""
   echo "================================================================="
@@ -1473,26 +1435,37 @@ app_bundle_install_to_Applications() {
 
   log "Copying App Bundle to /Applications"
 
-  cp -R "$APP_FOLDER" /Applications || { echo "app_bundle_install_to_Applications: Failed to copy ${APP_FOLDER} to /Applications"; exit; }
+  cp -R "$APP_FOLDER" /Applications || { echo "app_bundle_install_to_Applications: Failed to copy ${APP_FOLDER} to /Applications"; exit 1; }
 
-  echo "App Bundle copied to /Applications"
+  echo " App Bundle copied to /Applications"
   echo "================================================================="
 }
 
 this_script_cleanup() {
+  #####################################
+  ## Clean up the preparation files
+  #####################################
+  echo ""
+  echo "================================================================="
+  echo " Clean up the preparation files"
+  echo "================================================================="
 
   log "Cleaning up"
 
   if [ "$CLEANUP" = true ]; then
-    # remove downloaded compressed src
-    rm "$XMJ_SRC_FILENAME_COMPRESSED"
-    # remove source working directory
-    rm -Rf "$XMJ_SRC_FILENAME"
-    # remove app bundle as it was copied in /Applications
-    rm -Rf "$APP_NAME"
+    # # remove downloaded compressed src
+    # rm "$XMJ_SRC_FILENAME_COMPRESSED"
+    # # remove source working directory
+    # rm -Rf "$XMJ_SRC_FILENAME"
+    # # remove app bundle as it was copied in /Applications
+    # rm -Rf "$APP_NAME"
+    rm -Rf "$TEMP_FOLDER"
     # remove dowloaded iconset
     rm -Rf "xmj.icns"
   fi
+
+  echo " Cleanup complete"
+  echo "================================================================="
 }
 
 main() {
@@ -1504,7 +1477,7 @@ main() {
   xmj_check_files_to_be_patched
   xmj_create_patches_for_version
   xmj_adjust_src_port_number
-  xmj_adjust_src_executables_path
+  # xmj_adjust_src_executables_path # No longer needed
   xmj_patch_tiles_display_bug_fix_for_xmj_1_17
   check_xcode_cli_tools
   install_compiling_essentials
@@ -1516,19 +1489,21 @@ main() {
   app_bundle_copy_tilesets
   app_bundle_prepare_and_install_iconset
 
-  # install_dylibbundler # Alternative to dylib_handling_ below
-  # execute_dylibbundler # Alternative to dylib_handling_
+  #    Alternative 1 to finalise a portable bundle (but not working so well at the moment)
+  # install_dylibbundler 
+  # execute_dylibbundler
 
-  # dylib_handling_identify_dylibs_to_import # Alternative to dylibbundler
-  # dylib_handling_copy_dylibs_to_import # Alternative to dylibbundler
-  # dylib_handling_update_executables_for_bundled_dylibs # Alternative to dylibbundler
-  # dylib_handling_load_non_standard_dylibs_needed_by_dylibs # Alternative to dylibbundler
-  # dylib_handling_update_bundled_dylibs_references # Alternative to dylibbundler
+  #    Alternative 2, should be working
+  dylib_handling_for_executables_identify_dylibs_to_import
+  dylib_handling_for_executables_copy_dylibs_to_import
+  dylib_handling_for_executables_update_executables_references
+  dylib_handling_for_bundled_dylibs_load_non_standard_dylibs_needed_by_dylibs
+  dylib_handling_for_bundled_dylibs_update_bundled_dylibs_references
+  dylib_handling_add_gdk_pixbuf_loaders_and_cache
 
   app_bundle_install_to_Applications
   log "Installation completed successfully"
   trap this_script_cleanup EXIT
-
 }
 
 main
