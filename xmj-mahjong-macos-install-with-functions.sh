@@ -293,9 +293,9 @@ xmj_uncompress_src() {
   log "Uncompressing source code"
 
   # Change to the temporary folder
-  pushd "$TEMP_FOLDER" || { echo "xmj_uncompress_src: Failed to change directory to ${TEMP_FOLDER}"; exit; }
+  pushd "$TEMP_FOLDER" || { echo "xmj_uncompress_src: Failed to change directory to ${TEMP_FOLDER}"; exit 1; }
 
-  tar -zxvf ./"$XMJ_SRC_FILENAME_COMPRESSED" || echo {"xmj_uncompress_src: Failed to uncompress ${XMJ_SRC_FILENAME_COMPRESSED}"}
+  tar -zxvf ./"$XMJ_SRC_FILENAME_COMPRESSED" || { echo "xmj_uncompress_src: Failed to uncompress ${XMJ_SRC_FILENAME_COMPRESSED}"; exit 1; }
 
   # # Secondary check for success: if the folder resulting from decompession is not there, fail 
   # if [ -d "$XMJ_UNCOMPRESS_FOLDER" ]; then
