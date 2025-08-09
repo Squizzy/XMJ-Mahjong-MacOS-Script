@@ -499,7 +499,7 @@ check_xcode_cli_tools() {
 
   if [ "$XCODE_INSTALLED" = false ]; then
     log "Xcode Command Line Tools are not installed. Installing them now..."
-    xcode-select --install || echo {"check_xcode_cli_tools: Failed to install the tools"; exit 1;}
+    xcode-select --install || { echo "check_xcode_cli_tools: Failed to install the tools"; exit 1; }
     echo " Xcode Command Line Tools installed successfully"
   else
     log " Xcode Command Line Tools are already installed, skipping"
@@ -527,11 +527,11 @@ install_compiling_essentials() {
   # Install or upgrade homebrew, if needed
   if [ "$BREW_INSTALLED" = false ]; then
     log "Homebrew is not installed. Installing it now..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"  || echo {"install_compiling_essentials: Failed to install Homebrew"; exit 1;}
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"  || { echo "install_compiling_essentials: Failed to install Homebrew"; exit 1; }
     echo " Homebrew installed successfully"
   else
     log "Homebrew is already installed. Updating it..."
-    brew update || echo {"install_compiling_essentials: Failed to update Homebrew, skipping.";}
+    brew update || { echo "install_compiling_essentials: Failed to update Homebrew, skipping."; }
     echo " Homebrew updated successfully"
   fi
 
@@ -539,12 +539,12 @@ install_compiling_essentials() {
   # Install or update GTK+ using homebrew, if needed
   if [ "$GTK_INSTALLED" = false ]; then
     log "GTK+ is not installed. Installing it now..."
-    brew install gtk+  || echo {"install_compiling_essentials: Failed to install gtk+"; exit 1;}
+    brew install gtk+  || { echo "install_compiling_essentials: Failed to install gtk+"; exit 1; }
     echo " GTK+ installed successfully"
   else 
     if [ "$GTK_NEEDS_UPDATE" = true ]; then
       log "GTK+ is installed but needs to be updated. Updating it now..."
-      brew upgrade gtk+ || echo {"install_compiling_essentials: Failed to update gtk+, skipping.";}
+      brew upgrade gtk+ || { echo "install_compiling_essentials: Failed to update gtk+, skipping."; }
       echo "GTK+ upgraded successfully"
     else
       log "GTK+ is already installed and up to date."
@@ -556,12 +556,12 @@ install_compiling_essentials() {
   # Install or upgrade pkg-config using homebrew, if needed
   if [ "$PKG_CONFIG_INSTALLED" = false ]; then
     log "pkg-config is not installed. Installing it now..."
-    brew install pkg-config || echo {"install_compiling_essentials: Failed to install pkg-config"; exit 1;}
+    brew install pkg-config || { echo "install_compiling_essentials: Failed to install pkg-config"; exit 1; }
     echo " pkg-config installed successfully"
   else 
     if [ "$PKG_CONFIG_NEEDS_UPDATE" = true ]; then
       log "pkg-config is installed but needs to be updated. Updating it now..."
-      brew upgrade pkg-config   || echo {"install_compiling_essentials: Failed to update pkg-config, skipping.";}
+      brew upgrade pkg-config   || { echo "install_compiling_essentials: Failed to update pkg-config, skipping."; }
       echo " pkg-config upgraded successfully"
     else
       log "pkg-config is already installed and up to date."
@@ -1408,10 +1408,10 @@ dylib_handling_add_gdk_pixbuf_loaders_and_cache() {
   log "Updating references in the bundled dylibs"
 
   # create the repository for the pixbuf loaders and cache
-  mkdir -p "$APP_LIBS_FOLDER/gdk-pixbuf-2.0/2.10.0" || {echo "dylib_handling_add_gdk_pixbuf_loaders_and_cache: failed to create folder."; exit 1;}
+  mkdir -p "$APP_LIBS_FOLDER/gdk-pixbuf-2.0/2.10.0" || { echo "dylib_handling_add_gdk_pixbuf_loaders_and_cache: failed to create folder."; exit 1; }
 
   # Copy the loaders and the cache
-  cp -r /usr/local/lib/gdk-pixbuf-2.0/2.10.0/ "$APP_LIBS_FOLDER/gdk-pixbuf-2.0/2.10.0/" || {echo "dylib_handling_add_gdk_pixbuf_loaders_and_cache: failed to copy files.";  exit 1}
+  cp -r /usr/local/lib/gdk-pixbuf-2.0/2.10.0/ "$APP_LIBS_FOLDER/gdk-pixbuf-2.0/2.10.0/" || { echo "dylib_handling_add_gdk_pixbuf_loaders_and_cache: failed to copy files.";  exit 1; }
 
   command -v gdk-pixbuf-query-loaders >/dev/null 2>&1 || { echo >&2 "gdk-pixbuf-query-loaders is required (part of gtk+) but not present. Aborting."; exit 1; }
 
@@ -1462,9 +1462,11 @@ this_script_cleanup() {
     rm -Rf "$TEMP_FOLDER"
     # remove dowloaded iconset
     rm -Rf "xmj.icns"
+    echo " Cleanup complete"
+  else
+    echo " Cleanup skipped"
   fi
 
-  echo " Cleanup complete"
   echo "================================================================="
 }
 
