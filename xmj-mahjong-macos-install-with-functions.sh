@@ -146,8 +146,11 @@ check_dependencies() {
   command -v sed >/dev/null 2>&1 || { echo >&2 "sed is required but not installed. Aborting."; exit 1; }
   command -v patch >/dev/null 2>&1 || { echo >&2 "patch is required but not installed. Aborting."; exit 1; }
   command -v make >/dev/null 2>&1 || { echo >&2 "make is required but not installed. Aborting."; exit 1; }
+  command -v otool >/dev/null 2>&1 || { echo >&2 "otool is required but not installed. Aborting."; exit 1; }
+  command -v install_name_tool >/dev/null 2>&1 || { echo >&2 "install_name_tool is required but not installed. Aborting."; exit 1; }
+  command -v iconutil >/dev/null 2>&1 || { echo >&2 "iconutil is required but not installed. Aborting."; exit 1; }
 
-  # Dependencies that the script will install
+  # Dependencies that the script will check for brew installed software
   command -v xcode-select >/dev/null 2>&1 || { XCODE_INSTALLED=false; }
   command -v brew >/dev/null 2>&1 || { BREW_INSTALLED=false; }
   brew list gtk+ >/dev/null 2>&1 || { GTK_INSTALLED=false; }
@@ -599,7 +602,7 @@ make_executables() {
   # Go to the extracted folder
   pushd "$XMJ_UNCOMPRESS_FOLDER" || { echo "make_executables: Failed to change directory to extracted ${XMJ_UNCOMPRESS_FOLDER}"; exit; }
 
-  make clean
+  make clean || { echo "make_executables: Failed to clean make"; exit 1;}
 
   if ! make; then
     log "make command failed. Please check the output for errors."
@@ -753,7 +756,7 @@ EndOfText
   )
 
   # Save the info.plist file
-  printf '%s' "$INFO_PLIST_CONTENT" > "$APP_INFO_PLIST_LOCATION"  || { echo "app_bundle_create_info_plist: Failed to save ${APP_INFO_PLIST_LOCATION}"; exit; }
+  printf '%s' "$INFO_PLIST_CONTENT" > "$APP_INFO_PLIST_LOCATION"  || { echo "app_bundle_create_info_plist: Failed to save ${APP_INFO_PLIST_LOCATION}"; exit 1; }
 
   echo " Info.plist created in ${APP_INFO_PLIST_LOCATION}"
   echo "================================================================="
@@ -844,10 +847,10 @@ app_bundle_copy_tilesets() {
 
   log "copying tilesets in App Bundle "
 
-  cp -R "$XMJ_UNCOMPRESS_FOLDER"/tiles-numbered "$APP_EXECUTABLES_FOLDER"/
-  cp -R "$XMJ_UNCOMPRESS_FOLDER"/tiles-small    "$APP_EXECUTABLES_FOLDER"/
-  cp -R "$XMJ_UNCOMPRESS_FOLDER"/tiles-v1       "$APP_EXECUTABLES_FOLDER"/
-  cp -R "$XMJ_UNCOMPRESS_FOLDER"/fallbacktiles  "$APP_EXECUTABLES_FOLDER"/
+  cp -pR "$XMJ_UNCOMPRESS_FOLDER"/tiles-numbered "$APP_EXECUTABLES_FOLDER"/
+  cp -pR "$XMJ_UNCOMPRESS_FOLDER"/tiles-small    "$APP_EXECUTABLES_FOLDER"/
+  cp -pR "$XMJ_UNCOMPRESS_FOLDER"/tiles-v1       "$APP_EXECUTABLES_FOLDER"/
+  cp -pR "$XMJ_UNCOMPRESS_FOLDER"/fallbacktiles  "$APP_EXECUTABLES_FOLDER"/
 
   echo " Tilesets copied to ${APP_EXECUTABLES_FOLDER}"
   echo "================================================================="
