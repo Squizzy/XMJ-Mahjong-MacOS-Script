@@ -141,6 +141,8 @@ check_dependencies() {
   echo "================================================================="
   
   log "Checking dependencies"
+
+  # Dependencies related to the OS mainly
   command -v curl >/dev/null 2>&1 || { echo >&2 "curl is required but not installed. Aborting."; exit 1; }
   command -v tar >/dev/null 2>&1 || { echo >&2 "tar is required but not installed. Aborting."; exit 1; }
   command -v sed >/dev/null 2>&1 || { echo >&2 "sed is required but not installed. Aborting."; exit 1; }
@@ -153,6 +155,8 @@ check_dependencies() {
   # Dependencies that the script will check for brew installed software
   command -v xcode-select >/dev/null 2>&1 || { XCODE_INSTALLED=false; }
   command -v brew >/dev/null 2>&1 || { BREW_INSTALLED=false; }
+
+  # Dependencies that the script will check for brew installed software
   brew list gtk+ >/dev/null 2>&1 || { GTK_INSTALLED=false; }
   brew outdated gtk+ >/dev/null 2>&1 || { GTK_NEEDS_UPDATE=true; }
   brew list pkg-config >/dev/null 2>&1 || { PKG_CONFIG_INSTALLED=false; }
