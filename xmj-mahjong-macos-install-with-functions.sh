@@ -19,11 +19,11 @@
 set -e  # Exit immediately if a command exits with a non-zero status
 trap 'echo "Error occurred. Exiting..."; exit 1' ERR
 
-ENABLE_LOG=false
-CLEANUP=false
 
 XMJ_VERSION="1.17"
 DOWNLOAD_ICONSET=true
+ENABLE_LOG=false
+CLEANUP=false
 
 usage() {
     echo "Usage: $0 [-v version] [-c] [-d] [-l] [-h]"
@@ -253,14 +253,16 @@ xmj_download_src() {
   # curl https://mahjong.julianbradfield.org/Source/mj-1.16-src.tar.gz -O mj-1.16-src.tar.gz
   echo "$XMJ_SRC_REMOTE_FILE"
   echo "$XMJ_SRC_FILENAME_COMPRESSED"
+
   if ! curl -O "$XMJ_SRC_REMOTE_FILE" ; then
+    echo "xmj_download_src: Failed to download xmj source file for: $XMJ_SRC_REMOTE_FILE"
     log "Failed to download source file"
     exit 1
   fi
 
   if [ ! -f "$XMJ_SRC_FILENAME_COMPRESSED" ]; then
     log "Source file $XMJ_SRC_FILENAME_COMPRESSED not found after download"
-    echo " Source file $XMJ_SRC_FILENAME_COMPRESSED not found after download"
+    echo "xmj_download_src: Source file $XMJ_SRC_FILENAME_COMPRESSED not found after download"
     exit 1
   fi
   log "Source file $XMJ_SRC_FILENAME_COMPRESSED downloaded successfully"
