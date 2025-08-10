@@ -1,4 +1,4 @@
-#!/bin/env zsh
+#!/bin/bash
 
 VERSION="1.17"
 
