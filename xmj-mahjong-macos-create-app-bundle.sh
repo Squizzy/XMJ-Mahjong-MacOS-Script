@@ -6,8 +6,8 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
-# 2025-08-09 - Version 0.8 - now adds the non-standard dylib to the bundle to be portable. Several bug fixes. 
-# 2025-08-04 - Version 0.7 - Added xmj-1.17 support, switched from manual editing patches to proper patching
+# 2025-08-09 - Version 0.8 - Renamed script to better represent its function; adds the non-standard dylib to the bundle to be portable; Several bug fixes; further checks and user feedback (refactoring).
+# 2025-08-04 - Version 0.7 - Added xmj-1.17 support; switched from manual editing patches to proper patching
 # 2025-08-04 - Version 0.6 - Some refactoring for clarity
 # 2024-09-06 - Version 0.5 - tested xmj-1.16 (-with-functions version) as working on Sonoma/Intel
 # 2024-09-05 - Version 0.4 - structuring into function, untested, probably broken
