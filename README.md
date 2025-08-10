@@ -6,10 +6,15 @@ A script to install Julian Bradfield's XMJ Mahjong on MacOS, fixing some MacOS i
 
 ## Short instructions
 
-* Download the file 'xmj-mahjong-macos-install-with-function.sh'
-* run, from a terminal: 'sh ./xmj-mahjong-macos-install-with-function.sh'
+* Download the file 'xmj-mahjong-macos-create-app-bundle.sh'
+* run, from a terminal: 'sh ./xmj-mahjong-macos-create-app-bundle.sh'
+* follow instructions, if needed
 
 If all goes well, XMJ Mahjong app should be in /Applications folder, and also be found in Launchpad.
+
+## Screenshot
+
+![XMJ Mahjong 1.17 on x86 MacOS 15 Sequoia](res/XMJ_Mahjong_1.17_on_x86_MacOS15_Sequoia.png)
 
 ## Command line arguments
 
@@ -26,10 +31,10 @@ If all goes well, XMJ Mahjong app should be in /Applications folder, and also be
 * A **script to install XMJ Mahjong on MacOS**.
 * The application is provided by its author for Linux and Windows, but no recent version has been available for MacOS.
   * This script creates it, hopefully with the latest version of the code.
-* Note that Apple has claimed port 5000, so the default here has been set to 4000.
+* Note that Apple has claimed port 5000, so the default here has been modified to 4000.
   * If playing with others on Linux/Windows OS, they need to adjust to this Port 5000 -> 4000 when starting/joining a new game
 * There is no guarantee that this script will work for your machine, or even mess it up, use at your own risk.
-* Please notify of issues (but there will not be any guaranteed response time). Fork if desired.
+* Please notify of issues (but there will not be any guaranteed response time).
 
 <!-- ## How to use it?
 
@@ -51,21 +56,24 @@ If all goes well, XMJ Mahjong app should be in /Applications folder, and also be
 * Downloads XMJ Mahjong source code from its author's webpage
 * Modifies some source files to enable working with Apple MacOS
   * change the default communication port from 5000 to 4000 due to Apple claiming 5000
-  * ensure that local paths are represented referenced to the current path when calling files (WIP)
+  <!-- * ensure that local paths are represented referenced to the current path when calling files (WIP) -->
 * Installs the package manager Homebrew
   * Then installs the packages gtk+ and pkg-config from Homebrew
 * Compiles the source code
-* Creates and populates the Apple App Bundle (Fancy name to say a folder that will be recognised by Launchpad)
-  * NOTE: This script downloads the iconset from this website. The iconset is needed by the App Bundle.
-  * You might perfer to prevent the script from doing this and create your own iconset.
+* Creates and populates the Apple App Bundle 
+  * (Fancy Apple name foor the App, which is a folder that will be recognised by Launchpad)
+* NOTE: This script downloads the iconset from this website. The iconset is needed by the App Bundle.
+  * You might prefer to prevent the script from doing this and create your own iconset.
   * Instruction are in the script file itself (a text file you can open with your favourite text editor - but not Word or Pages!)
-* For portability: Import non-standard dylibs (such as gtk+) and patches the executables and dylibs to refer to the bundle
-* Installs the App Bundle into the Applications Folder/Launchpad
+* For portability: 
+  * Imports non-standard dylibs (such as gtk+) and patches the executables and dylibs to refer to the bundle version of the dylibs
+* Installs the App Bundle into the Applications Folder
+  * This makes it available in Launchpad
 
 ## History
 
-* 2025-08-09 - Version 0.8 - now adds the non-standard dylib to the bundle to be portable. Several bug fixes.
-* 2025-08-04 - Version 0.7 - Added xmj-1.17 support, switched from manual editing patches to proper patching
+* 2025-08-09 - Version 0.8 - Renamed script to better represent its function; adds the non-standard dylib to the bundle to be portable; Several bug fixes; further checks and user feedback (refactoring).
+* 2025-08-04 - Version 0.7 - Added xmj-1.17 support; switched from manual editing patches to proper patching
 * 2025-08-04 - Version 0.6 - Some refactoring for clarity
 * 2024-09-06 - Version 0.5 - tested xmj-1.16 (-with-functions version) as working on Sonoma/Intel
 * 2024-09-05 - Version 0.4 - structuring into function, untested, probably broken
@@ -75,8 +83,8 @@ If all goes well, XMJ Mahjong app should be in /Applications folder, and also be
 
 ## TO DO
 
-<!-- * Add confirmation request for each step -->
-* Confirm this script on a variety of platforms
+* [ ] Confirm this script on a variety of platforms
   * So far only 2018/9 Intel Macbook is tested
-<!-- * Adjust more paths with reference to the local folder -->
-* Identify what crashes in the app and report to original author
+* [x] Adjust more paths with reference to the local folder
+* [ ] Identify what crashes in the app and report to original author
+* [ ] Identify how to connect between two macs (MacOS Sequoia+)
