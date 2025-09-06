@@ -14,3 +14,5 @@ diff -u xmj_${VERSION}/gui_xmj_${VERSION}.c xmj_${VERSION}/gui_xmj_${VERSION}_fi
 
 # Now obsolete
 # diff -u xmj_${VERSION}/gui_xmj_${VERSION}.c xmj_${VERSION}/gui_xmj_${VERSION}_fixed_for_executables_relative_path.c > gui_xmj_${VERSION}_executables_relative_path_fix.patch
+
+diff -u xmj_${VERSION}/sysdep_xmj_${VERSION}.h xmj_${VERSION}/sysdep_xmj_${VERSION}_fixed_for_strmcat_size.h > sysdep_xmj_${VERSION}_strmcat_size_fix.patch

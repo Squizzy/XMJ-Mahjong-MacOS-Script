@@ -461,7 +461,6 @@ xmj_adjust_src_executables_path() {
   echo " Patches to adjust executables relative paths done"
   echo "================================================================="
 }
-# This concludes the essential code changes - could be done in a smarter way, presumably.
 
 xmj_patch_tiles_display_bug_fix_for_xmj_1_17() {
   ####################################
@@ -489,6 +488,29 @@ xmj_patch_tiles_display_bug_fix_for_xmj_1_17() {
   patch -u "$XMJ_UNCOMPRESS_FOLDER"/gui.c -i "$PATCHES_FOLDER"/gui_xmj_"$XMJ_VERSION"_tiles_display_fix.patch || { echo "xmj_patch_tiles_display_bug_fix_for_xmj_1_17: Failed to patch gui.c"; exit; }
 
   echo " Tiles Display Bug fix for xmj-1.17 applied"
+  echo "================================================================="
+}
+
+xmj_patch_strmcat_size_fix() {
+  ####################################
+  ## Patch to fix potential strmcat size issue
+  ##
+  ## This patch is to fix a potential issue with strmcat
+  ## which could cause a buffer overflow in some cases
+  ## This patch increases the size of the buffer used
+  ## in strmcat to avoid this issue
+  ## This removes the warning issued by gcc
+  ####################################
+  echo ""
+  echo "================================================================="
+  echo " Patching potential strmcat size issue"
+  echo "================================================================="
+
+  log "Patching potential strmcat size issue"
+
+  patch -u "$XMJ_UNCOMPRESS_FOLDER"/sysdep.h -i "$PATCHES_FOLDER"/sysdep_xmj_"$XMJ_VERSION"_strmcat_size_fix.patch || { echo "xmj_patch_strmcat_size_fix: Failed to patch sysdep.h"; exit; }
+
+  echo " Potential strmcat size issue patched"
   echo "================================================================="
 }
 
@@ -1490,6 +1512,7 @@ main() {
   xmj_adjust_src_port_number
   # xmj_adjust_src_executables_path # No longer needed
   xmj_patch_tiles_display_bug_fix_for_xmj_1_17
+  xmj_patch_strmcat_size_fix
   check_xcode_cli_tools
   install_compiling_essentials
   make_executables
