@@ -72,6 +72,7 @@ If all goes well, XMJ Mahjong app should be in /Applications folder, and also be
 
 ## History
 
+* 2025-09-08 - Version 0.2 - Updated for xmj-1.17.2; fixes means only socket port patch remains (due to Apple use of port 5000)
 * 2025-08-09 - Version 0.8 - Renamed script to better represent its function; adds the non-standard dylib to the bundle to be portable; Several bug fixes; further checks and user feedback (refactoring).
 * 2025-08-04 - Version 0.7 - Added xmj-1.17 support; switched from manual editing patches to proper patching
 * 2025-08-04 - Version 0.6 - Some refactoring for clarity

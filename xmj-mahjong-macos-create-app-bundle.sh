@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+## !/bin/bash
 
 # Script to install Julian Bradfield XMJ Mahjong to MacOS
 #
@@ -6,6 +8,7 @@
 #   https://mahjong.julianbradfield.org/
 #
 # This script:
+# 2025-09-08 - Version 0.9 - Updated for xmj-1.17.2; fixes means only socket port patch remains (due to Apple use of port 5000)
 # 2025-08-09 - Version 0.8 - Renamed script to better represent its function; adds the non-standard dylib to the bundle to be portable; Several bug fixes; further checks and user feedback (refactoring).
 # 2025-08-04 - Version 0.7 - Added xmj-1.17 support; switched from manual editing patches to proper patching
 # 2025-08-04 - Version 0.6 - Some refactoring for clarity
@@ -20,7 +23,7 @@ set -e  # Exit immediately if a command exits with a non-zero status
 trap 'echo "Error occurred. Exiting..."; exit 1' ERR
 
 
-XMJ_VERSION="1.17"
+XMJ_VERSION="1.17.2"
 DOWNLOAD_ICONSET=true
 ENABLE_LOG=false
 CLEANUP=false
@@ -443,6 +446,16 @@ xmj_adjust_src_executables_path() {
   ## way the execution of the mj-player and mj-server are made
   ##
   ####################################
+  if [ "$XMJ_VERSION" != "1.17" ]; then
+    # echo ""
+    # echo "================================================================="
+    echo " Skipping adjusting executable relative paths in source code"
+    # echo " This patch is only needed for version 1.17"
+    # echo " (or earlier buth patches have not been made)"
+    # echo "================================================================="
+    return
+  fi
+
   echo ""
   echo "================================================================="
   echo " Adjusting executable relative paths in source code"
@@ -477,6 +490,16 @@ xmj_patch_tiles_display_bug_fix_for_xmj_1_17() {
   ## Its use modernises the implementation of XMJ and allows fixing of some issues
   ## observed in previous versions
   ####################################
+  if [ "$XMJ_VERSION" != "1.17" ]; then
+    # echo ""
+    # echo "================================================================="
+    echo " Skipping Tiles Display Bug fix for xmj-1.17"
+    # echo " This patch is only needed for version 1.17"
+    # echo " Patches has now been implemented from xmj-1.17.2 onwards"
+    # echo "================================================================="
+    return
+  fi
+
   echo ""
   echo "================================================================="
   echo " Tiles Display Bug fix for xmj-1.17"
@@ -501,6 +524,16 @@ xmj_patch_strmcat_size_fix() {
   ## in strmcat to avoid this issue
   ## This removes the warning issued by gcc
   ####################################
+  if [ "$XMJ_VERSION" != "1.17" ]; then
+    # echo ""
+    # echo "================================================================="
+    echo " Skipping potential strmcat size issue patch"
+    # echo " This patch is only needed for version 1.17"
+    # echo " Patches has now been implemented from xmj-1.17.1 onwards"
+    # echo "================================================================="
+    return
+  fi
+
   echo ""
   echo "================================================================="
   echo " Patching potential strmcat size issue"
